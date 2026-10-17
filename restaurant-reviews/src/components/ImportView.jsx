@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
-import { searchPlaces, lookupDetails } from '../photon';
+import { searchPlaces, searchAny, lookupDetails } from '../photon';
 import { fmtScore } from '../utils';
 
 // One-time import of restaurants from /import.json.
@@ -28,7 +28,10 @@ export default function ImportView({ rows, user, onDone }) {
 
   async function searchOne(entry) {
     try {
-      const results = (await searchPlaces(entry.query, null, undefined, 6)).slice(0, 6);
+      // A query starting with a number is a street address: search addresses instead of restaurants.
+      const results = /^\d/.test(entry.query.trim())
+        ? await searchAny(entry.query, null, 4)
+        : (await searchPlaces(entry.query, null, undefined, 6)).slice(0, 6);
       const best = results.find((p) => p.isFood) || results[0] || null;
       return { ...entry, results, pick: best ? best.osm_ref : NO_PIN, status: best ? 'found' : 'none' };
     } catch {

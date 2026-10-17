@@ -46,10 +46,22 @@ async function query(params, signal) {
 // Restaurant search: only places tagged amenity=*, food places first.
 export async function searchPlaces(q, loc, signal, limit = 12) {
   const c = loc || HOME_CENTER;
-  const params = new URLSearchParams({ q, limit: String(limit), lat: c.lat, lon: c.lng, lang: 'en' });
+  // Low bias scale = strongly prefer places near you (or Philly) over famous ones elsewhere.
+  const params = new URLSearchParams({
+    q, limit: String(limit), lat: c.lat, lon: c.lng, lang: 'en', zoom: '10', location_bias_scale: '0.1',
+  });
   params.append('osm_tag', 'amenity');
   const places = await query(params, signal);
   return places.sort((a, b) => Number(b.isFood) - Number(a.isFood));
+}
+
+// Any place or street address, no category filter.
+export async function searchAny(q, loc, limit = 6) {
+  const c = loc || HOME_CENTER;
+  const params = new URLSearchParams({
+    q, limit: String(limit), lat: c.lat, lon: c.lng, lang: 'en', zoom: '10', location_bias_scale: '0.1',
+  });
+  return query(params);
 }
 
 // Address lookup for manually added restaurants.
