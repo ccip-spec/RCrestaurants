@@ -14,6 +14,21 @@ export function fmtScore(n) {
   return n == null ? '–' : (Math.round(n * 10) / 10).toFixed(1);
 }
 
+// Your rating scale
+export const TIERS = [
+  { min: 8.6, label: 'Excellent', key: 'excellent' },
+  { min: 7.3, label: 'Really good', key: 'really-good' },
+  { min: 6.3, label: 'Good', key: 'good' },
+  { min: 5.4, label: 'Okay', key: 'okay' },
+  { min: -Infinity, label: 'Bad', key: 'bad' },
+];
+
+export function tierOf(score) {
+  if (score == null) return null;
+  const s = Math.round(score * 10) / 10;
+  return TIERS.find((t) => s >= t.min);
+}
+
 export function fmtMiles(mi) {
   if (mi == null) return '';
   if (mi < 0.1) return '<0.1 mi';
@@ -41,6 +56,20 @@ export const priceLabel = (p) => (p ? '$'.repeat(p) : '');
 export function todayISO() {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+export function initials(name) {
+  const words = name.replace(/^the\s+/i, '').split(/[\s&+-]+/).filter(Boolean);
+  return (words[0]?.[0] || '?').toUpperCase() + (words[1]?.[0] || '').toUpperCase();
+}
+
+// Parses a 0–10 score typed by a person. Returns { value } or { error }.
+export function parseScore(raw, who) {
+  const s = String(raw ?? '').trim().replace(',', '.');
+  if (s === '') return { value: null };
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0 || n > 10) return { error: `${who} must be between 0 and 10.` };
+  return { value: Math.round(n * 10) / 10 };
 }
 
 // ---------- distance ----------
@@ -81,15 +110,21 @@ export function visitAvg(v) {
   return mean(PEOPLE.map((p) => v[`${p.key}_score`]));
 }
 
+function byVisitOrder(a, b) {
+  // Newest dated visits first, undated visits last.
+  if (a.visit_date && b.visit_date && a.visit_date !== b.visit_date) return b.visit_date.localeCompare(a.visit_date);
+  if (a.visit_date && !b.visit_date) return -1;
+  if (!a.visit_date && b.visit_date) return 1;
+  return b.created_at.localeCompare(a.created_at);
+}
+
 export function buildRows(restaurants, visits, loc) {
   const byRestaurant = {};
   for (const v of visits) {
     (byRestaurant[v.restaurant_id] ||= []).push(v);
   }
   return restaurants.map((r) => {
-    const vs = (byRestaurant[r.id] || [])
-      .slice()
-      .sort((a, b) => b.visit_date.localeCompare(a.visit_date) || b.created_at.localeCompare(a.created_at));
+    const vs = (byRestaurant[r.id] || []).slice().sort(byVisitOrder);
     const avg = {};
     for (const p of PEOPLE) avg[p.key] = mean(vs.map((v) => v[`${p.key}_score`]));
     // Overall = average of every individual score across all visits.
@@ -99,9 +134,11 @@ export function buildRows(restaurants, visits, loc) {
     return {
       ...r,
       visits: vs,
+      been: vs.length > 0,
       avg,
       overall,
-      lastVisit: vs[0]?.visit_date || null,
+      lastVisit: vs.find((v) => v.visit_date)?.visit_date || null,
+      meals: [...new Set(vs.map((v) => v.meal).filter(Boolean))],
       distance,
     };
   });
@@ -110,6 +147,15 @@ export function buildRows(restaurants, visits, loc) {
 export function mapsUrl(r) {
   const q = encodeURIComponent(r.name);
   return `https://maps.apple.com/?q=${q}&ll=${r.lat},${r.lng}`;
+}
+
+export function siteHost(website) {
+  if (!website) return null;
+  try {
+    return new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
 }
 
 // ---------- images ----------

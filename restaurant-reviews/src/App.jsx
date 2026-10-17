@@ -6,23 +6,37 @@ import MapView from './components/MapView';
 import ListView from './components/ListView';
 import RestaurantDetail from './components/RestaurantDetail';
 import VisitEditor from './components/VisitEditor';
-import { MapIcon, ListIcon, PlusIcon } from './components/Icons';
+import TryEditor from './components/TryEditor';
+import ImportView from './components/ImportView';
+import Sheet from './components/Sheet';
+
+function useHash() {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const on = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  return hash;
+}
 
 export default function App() {
   const [user, setUser] = useState(() => {
     const u = store.get('rr_user');
     return PEOPLE.some((p) => p.key === u) ? u : null;
   });
-  const [tab, setTab] = useState(() => store.get('rr_tab') || 'map');
+  const [tab, setTab] = useState('list'); // always opens on the list
+  const [section, setSection] = useState(() => store.get('rr_section', 'been'));
   const [restaurants, setRestaurants] = useState([]);
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [loc, setLoc] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const [editor, setEditor] = useState(null); // { restaurant?, visit? }
+  const [editor, setEditor] = useState(null); // { kind: 'visit'|'try'|'choose', restaurant?, visit? }
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
+  const hash = useHash();
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -71,7 +85,7 @@ export default function App() {
     locate(true);
   }, [locate]);
 
-  useEffect(() => store.set('rr_tab', tab), [tab]);
+  useEffect(() => store.set('rr_section', section), [section]);
 
   const rows = useMemo(() => buildRows(restaurants, visits, loc), [restaurants, visits, loc]);
   const selected = rows.find((r) => r.id === selectedId) || null;
@@ -80,14 +94,17 @@ export default function App() {
     store.set('rr_user', key);
     setUser(key);
   };
+  const switchUser = () => {
+    if (confirm('Switch who is rating on this phone?')) pickUser(null);
+  };
 
   if (!configured) {
     return (
       <div className="center-screen">
-        <h1>{APP_NAME}</h1>
+        <h1 className="wordmark">{APP_NAME}</h1>
         <p>
           Missing database settings. In Vercel, add <code>VITE_SUPABASE_URL</code> and{' '}
-          <code>VITE_SUPABASE_ANON_KEY</code> under Settings → Environment Variables, then redeploy.
+          <code>VITE_SUPABASE_ANON_KEY</code> under Settings, Environment Variables, then redeploy.
         </p>
       </div>
     );
@@ -97,10 +114,10 @@ export default function App() {
     return (
       <div className="center-screen">
         <h1 className="wordmark">{APP_NAME}</h1>
-        <p className="muted">Who's using this phone?</p>
+        <p className="muted">Who's rating on this phone?</p>
         <div className="user-pick">
           {PEOPLE.map((p) => (
-            <button key={p.key} className="btn primary big" onClick={() => pickUser(p.key)}>
+            <button key={p.key} className="pick-btn" onClick={() => pickUser(p.key)}>
               {p.label}
             </button>
           ))}
@@ -109,32 +126,56 @@ export default function App() {
     );
   }
 
-  const userLabel = PEOPLE.find((p) => p.key === user)?.label;
+  if (hash === '#import') {
+    return (
+      <div className="app">
+        <header className="topbar">
+          <a className="wordmark" href="#">
+            {APP_NAME}
+          </a>
+        </header>
+        <main className="main">
+          <div className="pane scroll">
+            <ImportView rows={rows} user={user} onDone={load} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const beenCount = rows.filter((r) => r.been).length;
 
   return (
     <div className="app">
       <header className="topbar">
         <h1 className="wordmark">{APP_NAME}</h1>
-        <button
-          className="who"
-          onClick={() => {
-            if (confirm('Switch user on this device?')) pickUser(null);
-          }}
-          title="Switch user"
-        >
-          Rating as<b>{userLabel}</b>
-        </button>
+        <span className="serial" aria-label={`${beenCount} restaurants rated`}>
+          No. {String(beenCount).padStart(4, '0')}
+        </span>
       </header>
 
       <main className="main">
         {loadError && (
           <div className="banner error">
-            Couldn't load data: {loadError}
+            Couldn't load your list: {loadError}
             <button className="btn small" onClick={load}>
-              Retry
+              Try again
             </button>
           </div>
         )}
+        <div className={`pane scroll ${tab === 'list' ? '' : 'hidden'}`}>
+          <ListView
+            rows={rows}
+            loc={loc}
+            loading={loading}
+            user={user}
+            section={section}
+            onSection={setSection}
+            onSwitchUser={switchUser}
+            onLocate={() => locate(false)}
+            onSelect={setSelectedId}
+          />
+        </div>
         <div className={`pane ${tab === 'map' ? '' : 'hidden'}`}>
           <MapView
             rows={rows}
@@ -145,28 +186,17 @@ export default function App() {
             onSelect={setSelectedId}
           />
         </div>
-        <div className={`pane scroll ${tab === 'list' ? '' : 'hidden'}`}>
-          <ListView
-            rows={rows}
-            loc={loc}
-            loading={loading}
-            onLocate={() => locate(false)}
-            onSelect={setSelectedId}
-          />
-        </div>
       </main>
 
       <nav className="tabbar">
-        <button className={tab === 'map' ? 'active' : ''} onClick={() => setTab('map')}>
-          <MapIcon />
-          Map
-        </button>
-        <button className="add-btn" onClick={() => setEditor({})} aria-label="Add a visit">
-          <PlusIcon />
-        </button>
         <button className={tab === 'list' ? 'active' : ''} onClick={() => setTab('list')}>
-          <ListIcon />
           List
+        </button>
+        <button className="add-btn" onClick={() => setEditor({ kind: 'choose' })} aria-label="Add">
+          +
+        </button>
+        <button className={tab === 'map' ? 'active' : ''} onClick={() => setTab('map')}>
+          Map
         </button>
       </nav>
 
@@ -174,19 +204,34 @@ export default function App() {
         <RestaurantDetail
           row={selected}
           onClose={() => setSelectedId(null)}
-          onAddVisit={(r) => setEditor({ restaurant: r })}
-          onEditVisit={(r, v) => setEditor({ restaurant: r, visit: v })}
+          onAddVisit={(r) => setEditor({ kind: 'visit', restaurant: r })}
+          onEditVisit={(r, v) => setEditor({ kind: 'visit', restaurant: r, visit: v })}
           onChanged={load}
-          onDeleted={() => {
+          onDeleted={(msg) => {
             setSelectedId(null);
             load();
-            showToast('Restaurant deleted');
+            showToast(msg);
           }}
           showToast={showToast}
         />
       )}
 
-      {editor && (
+      {editor?.kind === 'choose' && (
+        <Sheet title="Add" onClose={() => setEditor(null)}>
+          <div className="choose">
+            <button className="choose-btn" onClick={() => setEditor({ kind: 'visit' })}>
+              <span className="choose-title">Log a visit</span>
+              <span className="choose-sub">Rate somewhere you ate</span>
+            </button>
+            <button className="choose-btn" onClick={() => setEditor({ kind: 'try' })}>
+              <span className="choose-title">Add to try list</span>
+              <span className="choose-sub">Save a place someone recommended</span>
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {editor?.kind === 'visit' && (
         <VisitEditor
           rows={rows}
           loc={loc}
@@ -198,7 +243,23 @@ export default function App() {
             await load();
             setEditor(null);
             setSelectedId(restaurantId);
-            showToast('Saved');
+            showToast('Visit saved');
+          }}
+        />
+      )}
+
+      {editor?.kind === 'try' && (
+        <TryEditor
+          rows={rows}
+          loc={loc}
+          user={user}
+          onClose={() => setEditor(null)}
+          onSaved={async () => {
+            await load();
+            setEditor(null);
+            setSection('try');
+            setTab('list');
+            showToast('Added to try list');
           }}
         />
       )}

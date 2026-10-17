@@ -54,3 +54,13 @@ create policy "photos upload" on storage.objects
   for insert to anon, authenticated with check (bucket_id = 'photos');
 create policy "photos delete" on storage.objects
   for delete to anon, authenticated using (bucket_id = 'photos');
+
+-- Added later (also in migrations/002-features.sql)
+alter table public.restaurants add column if not exists want_to_try boolean not null default false;
+alter table public.restaurants add column if not exists recommended_by text;
+alter table public.restaurants add column if not exists try_notes text;
+alter table public.restaurants add column if not exists website text;
+alter table public.restaurants add column if not exists photo text;
+alter table public.visits alter column visit_date drop not null;
+alter table public.visits add column if not exists meal text;
+alter table public.visits add column if not exists items jsonb not null default '[]'::jsonb;

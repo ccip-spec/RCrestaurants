@@ -1,0 +1,248 @@
+[
+ {
+  "name": "Giuseppe & Sons",
+  "query": "Giuseppe & Sons",
+  "meal": "Dinner",
+  "c": 9.2,
+  "r": 9.3
+ },
+ {
+  "name": "Devil's Alley",
+  "query": "Devil's Alley",
+  "meal": "Dinner",
+  "c": 7.3,
+  "r": 7.2
+ },
+ {
+  "name": "My Loup",
+  "query": "My Loup",
+  "meal": "Dinner",
+  "c": 8.1,
+  "r": 8.6
+ },
+ {
+  "name": "Saloon",
+  "query": "Saloon",
+  "meal": "Dinner",
+  "c": 8.3,
+  "r": 8.6
+ },
+ {
+  "name": "Pearl & Mary",
+  "query": "Pearl & Mary",
+  "meal": "Dinner",
+  "c": 7.3,
+  "r": 7.3
+ },
+ {
+  "name": "Fiorella",
+  "query": "Fiorella",
+  "meal": "Dinner",
+  "c": 8.2,
+  "r": 8.0
+ },
+ {
+  "name": "Perla",
+  "query": "Perla",
+  "meal": "Dinner",
+  "c": 8.2,
+  "r": 8.3
+ },
+ {
+  "name": "Ralph's",
+  "query": "Ralph's Italian Restaurant",
+  "meal": "Dinner",
+  "c": 8.1,
+  "r": 7.2
+ },
+ {
+  "name": "Umai Umai",
+  "query": "Umai Umai",
+  "meal": "Dinner",
+  "c": 7.6,
+  "r": 7.4
+ },
+ {
+  "name": "Zama",
+  "query": "Zama",
+  "meal": "Dinner",
+  "c": 7.7,
+  "r": 7.1
+ },
+ {
+  "name": "Double Knot",
+  "query": "Double Knot",
+  "meal": "Dinner",
+  "c": 6.9,
+  "r": 7.3
+ },
+ {
+  "name": "Murph's",
+  "query": "Murph's Bar",
+  "meal": "Dinner",
+  "c": 8.3,
+  "r": 8.3
+ },
+ {
+  "name": "Pub & Kitchen",
+  "query": "Pub & Kitchen",
+  "meal": "Dinner",
+  "c": 7.1,
+  "r": 7.5
+ },
+ {
+  "name": "Pistola's Del Sur",
+  "query": "Pistola's Del Sur",
+  "meal": "Dinner",
+  "c": 4.2,
+  "r": 5.0
+ },
+ {
+  "name": "Via Locusta",
+  "query": "Via Locusta",
+  "meal": "Dinner",
+  "c": 8.6,
+  "r": 8.6
+ },
+ {
+  "name": "Her Place",
+  "query": "Her Place Supper Club",
+  "meal": "Dinner",
+  "c": 8.5,
+  "r": 8.8
+ },
+ {
+  "name": "Barcelona Wine Bar",
+  "query": "Barcelona Wine Bar",
+  "meal": "Dinner",
+  "c": 7.4,
+  "r": 7.4,
+  "notes": "M: 7.5"
+ },
+ {
+  "name": "El Techo",
+  "query": "El Techo",
+  "meal": "Dinner",
+  "c": 7.5,
+  "r": 7.4
+ },
+ {
+  "name": "Estia",
+  "query": "Estia",
+  "meal": "Dinner",
+  "c": 7.5,
+  "r": 7.3
+ },
+ {
+  "name": "Borromini",
+  "query": "Borromini",
+  "meal": "Dinner",
+  "c": 8.0,
+  "r": 8.2
+ },
+ {
+  "name": "Cry Baby",
+  "query": "Cry Baby Pasta",
+  "meal": "Dinner",
+  "c": 8.5,
+  "r": 8.0
+ },
+ {
+  "name": "Kalaya",
+  "query": "Kalaya",
+  "meal": "Dinner",
+  "c": 5.1,
+  "r": 7.4
+ },
+ {
+  "name": "Pizzeria Beddia",
+  "query": "Pizzeria Beddia",
+  "meal": "Dinner",
+  "c": 8.1,
+  "r": 8.3
+ },
+ {
+  "name": "Burrata",
+  "query": "Burrata",
+  "meal": "Dinner",
+  "c": 6.8,
+  "r": 6.8
+ },
+ {
+  "name": "Friday Saturday Sunday",
+  "query": "Friday Saturday Sunday",
+  "meal": "Dinner",
+  "c": 8.7,
+  "r": 9.0
+ },
+ {
+  "name": "Adoro",
+  "query": "Adoro",
+  "meal": "Dinner",
+  "c": 7.7,
+  "r": 7.3
+ },
+ {
+  "name": "Alice",
+  "query": "Alice",
+  "meal": "Dinner",
+  "c": 7.8,
+  "r": 8.0
+ },
+ {
+  "name": "Dim Sum Garden",
+  "query": "Dim Sum Garden",
+  "meal": "Brunch",
+  "c": 7.9,
+  "r": 7.9
+ },
+ {
+  "name": "Hawthornes",
+  "query": "Hawthornes",
+  "meal": "Brunch",
+  "c": 8.2,
+  "r": 7.4
+ },
+ {
+  "name": "The Love",
+  "query": "The Love",
+  "meal": "Brunch",
+  "c": 6.7,
+  "r": 6.8
+ },
+ {
+  "name": "The Dutch",
+  "query": "The Dutch",
+  "meal": "Brunch",
+  "c": 6.8,
+  "r": 7.0
+ },
+ {
+  "name": "Sidecar",
+  "query": "Sidecar Bar & Grille",
+  "meal": "Brunch",
+  "c": 9.1,
+  "r": 8.3
+ },
+ {
+  "name": "Jane G's",
+  "query": "Jane G's",
+  "meal": "Brunch",
+  "c": 6.8,
+  "r": 7.0
+ },
+ {
+  "name": "Parc",
+  "query": "Parc",
+  "meal": "Brunch",
+  "c": 7.9,
+  "r": 8.5
+ },
+ {
+  "name": "Ants Pants Cafe",
+  "query": "Ants Pants Cafe",
+  "meal": "Brunch",
+  "c": 8.6,
+  "r": 8.6
+ }
+]

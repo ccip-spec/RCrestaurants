@@ -1,10 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { PEOPLE, HOME_CENTER, LOCAL_RADIUS_MILES } from '../config';
-import { fmtScore, haversineMiles, priceLabel } from '../utils';
-import { LocateIcon, ExpandIcon } from './Icons';
+import { fmtScore, haversineMiles, priceLabel, store, tierOf } from '../utils';
 
-// Below this zoom, pins show only the score so names don't pile up.
+// Below this zoom, tags show only the score so names don't pile up.
 const NAME_ZOOM = 12;
 
 function fitTo(map, points) {
@@ -26,24 +25,28 @@ function el(tag, className, text) {
 
 function popupContent(r, onOpen) {
   const box = el('div', 'popup');
-  box.append(el('strong', null, r.name));
+  box.append(el('div', 'popup-name', r.name));
   const meta = [r.cuisine, r.neighborhood || r.city, priceLabel(r.price)].filter(Boolean);
-  if (meta.length) {
-    const m = el('div', 'popup-scores');
-    meta.forEach((t) => m.append(el('span', null, t)));
-    box.append(m);
+  if (meta.length) box.append(el('div', 'popup-meta', meta.join('  /  ')));
+  if (r.been) {
+    const scores = el('div', 'popup-scores');
+    for (const p of PEOPLE) {
+      const s = el('span', null, `${p.label} `);
+      s.append(el('b', null, fmtScore(r.avg[p.key])));
+      scores.append(s);
+    }
+    const tier = tierOf(r.overall);
+    const total = el('span', 'popup-total', 'Total ');
+    total.append(el('b', null, fmtScore(r.overall)));
+    scores.append(total);
+    box.append(scores);
+    if (tier) box.append(el('div', 'popup-tier', tier.label));
+  } else if (r.recommended_by) {
+    box.append(el('div', 'popup-meta', `To try, from ${r.recommended_by}`));
+  } else {
+    box.append(el('div', 'popup-meta', 'On your try list'));
   }
-  const scores = el('div', 'popup-scores');
-  const overall = el('span', 'overall', 'Overall');
-  overall.append(el('b', null, fmtScore(r.overall)));
-  scores.append(overall);
-  for (const p of PEOPLE) {
-    const s = el('span', null, p.label);
-    s.append(el('b', null, fmtScore(r.avg[p.key])));
-    scores.append(s);
-  }
-  box.append(scores);
-  const btn = el('button', 'btn small', `See ${r.visits.length} visit${r.visits.length === 1 ? '' : 's'}`);
+  const btn = el('button', 'popup-btn', r.been ? 'Open check' : 'Open');
   btn.onclick = onOpen;
   box.append(btn);
   return box;
@@ -57,22 +60,19 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
   const fittedRef = useRef(false);
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
+  const [show, setShow] = useState(() => store.get('rr_mapshow', { been: true, try: true }));
+  useEffect(() => store.set('rr_mapshow', show), [show]);
 
   // Create the map once.
   useEffect(() => {
-    const map = L.map(elRef.current, { zoomControl: false }).setView(
-      [HOME_CENTER.lat, HOME_CENTER.lng],
-      12
-    );
+    const map = L.map(elRef.current, { zoomControl: false }).setView([HOME_CENTER.lat, HOME_CENTER.lng], 12);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
-    L.control.zoom({ position: 'topright' }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
-    const syncZoomClass = () =>
-      map.getContainer().classList.toggle('zoomed-out', map.getZoom() < NAME_ZOOM);
+    const syncZoomClass = () => map.getContainer().classList.toggle('zoomed-out', map.getZoom() < NAME_ZOOM);
     map.on('zoomend', syncZoomClass);
     syncZoomClass();
     mapRef.current = map;
@@ -82,7 +82,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
     };
   }, []);
 
-  // Draw restaurant name tags. Higher-rated places sit on top when tags overlap.
+  // Draw tags. Higher-rated places sit on top when tags overlap.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -90,10 +90,14 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
     const all = [];
     for (const r of rows) {
       if (r.lat == null || r.lng == null) continue;
-      const scored = r.overall != null;
+      if (r.been ? !show.been : !show.try) continue;
+      const tier = tierOf(r.overall);
+      const left = r.been
+        ? `<span class="tag-score${tier ? ` t-${tier.key}` : ' none'}">${fmtScore(r.overall)}</span>`
+        : `<span class="tag-score try">Try</span>`;
       const icon = L.divIcon({
         className: 'tag-icon',
-        html: `<div class="tag"><span class="tag-score${scored ? '' : ' none'}">${fmtScore(r.overall)}</span><span class="tag-name">${escapeHtml(r.name)}</span></div>`,
+        html: `<div class="tag${r.been ? '' : ' is-try'}">${left}<span class="tag-name">${escapeHtml(r.name)}</span></div>`,
         iconSize: [0, 0],
         iconAnchor: [0, 0],
         popupAnchor: [0, -40],
@@ -101,7 +105,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
       const marker = L.marker([r.lat, r.lng], {
         icon,
         title: r.name,
-        zIndexOffset: scored ? Math.round(r.overall * 100) : 0,
+        zIndexOffset: r.overall != null ? Math.round(r.overall * 100) : 0,
       });
       marker.bindPopup(() =>
         popupContent(r, () => {
@@ -112,14 +116,13 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
       marker.addTo(layerRef.current);
       all.push([r.lat, r.lng]);
     }
-    // First time data arrives: zoom to nearby restaurants (fall back to all).
     if (!fittedRef.current && all.length) {
       fittedRef.current = true;
       const c = loc || HOME_CENTER;
       const near = all.filter(([la, ln]) => haversineMiles(c.lat, c.lng, la, ln) <= LOCAL_RADIUS_MILES);
       fitTo(map, near.length ? near : all);
     }
-  }, [rows, loc]);
+  }, [rows, loc, show]);
 
   // Your location dot.
   useEffect(() => {
@@ -130,7 +133,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
         radius: 8,
         color: '#ffffff',
         weight: 3,
-        fillColor: '#2a7de1',
+        fillColor: '#2a6fd6',
         fillOpacity: 1,
       })
         .bindTooltip('You')
@@ -140,7 +143,6 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
     }
   }, [loc]);
 
-  // Leaflet needs a resize nudge when its tab becomes visible.
   useEffect(() => {
     if (active && mapRef.current) setTimeout(() => mapRef.current?.invalidateSize(), 50);
   }, [active]);
@@ -151,7 +153,9 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
   };
 
   const showAll = () => {
-    const pts = rows.filter((r) => r.lat != null).map((r) => [r.lat, r.lng]);
+    const pts = rows
+      .filter((r) => r.lat != null && (r.been ? show.been : show.try))
+      .map((r) => [r.lat, r.lng]);
     fitTo(mapRef.current, pts);
   };
 
@@ -160,17 +164,22 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
   return (
     <div className="map-wrap">
       <div ref={elRef} className="map" />
-      <div className="map-buttons">
-        <button className="btn small" onClick={centerOnMe}>
-          <LocateIcon />
+      <div className="map-bar">
+        <button className={`chip ${show.been ? 'on' : ''}`} onClick={() => setShow((s) => ({ ...s, been: !s.been }))}>
+          Been
+        </button>
+        <button className={`chip try ${show.try ? 'on' : ''}`} onClick={() => setShow((s) => ({ ...s, try: !s.try }))}>
+          To try
+        </button>
+        <span className="map-bar-gap" />
+        <button className="chip plain" onClick={centerOnMe}>
           Near me
         </button>
-        <button className="btn small" onClick={showAll} disabled={!rows.length}>
-          <ExpandIcon />
+        <button className="chip plain" onClick={showAll} disabled={!rows.length}>
           Show all
         </button>
       </div>
-      {empty && <div className="map-empty">No restaurants yet. Tap + to add your first.</div>}
+      {empty && <div className="map-empty">No restaurants yet. Tap + to log your first visit.</div>}
     </div>
   );
 }

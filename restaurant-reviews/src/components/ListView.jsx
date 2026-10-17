@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PEOPLE } from '../config';
-import { fmtDate, fmtMiles, fmtScore, priceLabel, store } from '../utils';
+import { fmtDate, fmtMiles, fmtScore, priceLabel, store, TIERS } from '../utils';
+import { MEALS } from './VisitEditor';
 import Meta from './Meta';
-import { SearchIcon } from './Icons';
+import Score from './Score';
+import Thumb from './Thumb';
 
-const SORTS = [
+const BEEN_SORTS = [
   { key: 'overall', label: 'Overall rating' },
   ...PEOPLE.map((p) => ({ key: `p:${p.key}`, label: `${p.label}'s rating` })),
   { key: 'distance', label: 'Distance' },
   { key: 'recent', label: 'Most recent visit' },
   { key: 'visits', label: 'Most visits' },
+  { key: 'name', label: 'Name' },
+];
+const TRY_SORTS = [
+  { key: 'added', label: 'Recently added' },
+  { key: 'distance', label: 'Distance' },
   { key: 'name', label: 'Name' },
 ];
 
@@ -21,40 +28,48 @@ function sortValue(row, key) {
   if (key === 'distance') return row.distance;
   if (key === 'recent') return row.lastVisit;
   if (key === 'visits') return row.visits.length;
+  if (key === 'added') return row.created_at;
   if (key === 'name') return row.name.toLowerCase();
   return null;
 }
 
-const EMPTY_FILTERS = { q: '', cuisine: '', area: '', price: '', min: '' };
+const EMPTY_FILTERS = { q: '', cuisine: '', area: '', price: '', tier: '', meal: '' };
 
-export default function ListView({ rows, loc, loading, onLocate, onSelect }) {
-  const [sort, setSort] = useState(() => store.get('rr_sort', { key: 'overall', dir: 'desc' }));
-  const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, ...store.get('rr_filters', {}) }));
+export default function ListView({ rows, loc, loading, user, section, onSection: setSection, onSwitchUser, onLocate, onSelect }) {
+  const [sorts, setSorts] = useState(() =>
+    store.get('rr_sorts', { been: { key: 'overall', dir: 'desc' }, try: { key: 'added', dir: 'desc' } })
+  );
+  const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, ...store.get('rr_filters2', {}) }));
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => store.set('rr_sort', sort), [sort]);
-  useEffect(() => store.set('rr_filters', filters), [filters]);
+  useEffect(() => store.set('rr_sorts', sorts), [sorts]);
+  useEffect(() => store.set('rr_filters2', filters), [filters]);
 
-  const cuisines = useMemo(
-    () => [...new Set(rows.map((r) => r.cuisine).filter(Boolean))].sort(),
-    [rows]
-  );
-  const areas = useMemo(
-    () => [...new Set(rows.map((r) => r.neighborhood || r.city).filter(Boolean))].sort(),
-    [rows]
-  );
+  const been = useMemo(() => rows.filter((r) => r.been), [rows]);
+  const toTry = useMemo(() => rows.filter((r) => !r.been), [rows]);
+  const base = section === 'been' ? been : toTry;
+  const sort = sorts[section];
+  const sortOptions = section === 'been' ? BEEN_SORTS : TRY_SORTS;
 
-  const activeFilterCount = ['cuisine', 'area', 'price', 'min'].filter((k) => filters[k] !== '').length;
+  const cuisines = useMemo(() => [...new Set(base.map((r) => r.cuisine).filter(Boolean))].sort(), [base]);
+  const areas = useMemo(() => [...new Set(base.map((r) => r.neighborhood || r.city).filter(Boolean))].sort(), [base]);
+
+  const filterKeys = section === 'been' ? ['cuisine', 'area', 'price', 'tier', 'meal'] : ['cuisine', 'area', 'price'];
+  const activeFilterCount = filterKeys.filter((k) => filters[k] !== '').length;
 
   const list = useMemo(() => {
     const q = filters.q.trim().toLowerCase();
-    const filtered = rows.filter((r) => {
-      if (q && !`${r.name} ${r.cuisine || ''} ${r.neighborhood || ''} ${r.city || ''}`.toLowerCase().includes(q))
-        return false;
+    const tierMin = filters.tier ? TIERS.find((t) => t.key === filters.tier)?.min : null;
+    const filtered = base.filter((r) => {
+      const hay = `${r.name} ${r.cuisine || ''} ${r.neighborhood || ''} ${r.city || ''} ${r.recommended_by || ''}`;
+      if (q && !hay.toLowerCase().includes(q)) return false;
       if (filters.cuisine && r.cuisine !== filters.cuisine) return false;
       if (filters.area && (r.neighborhood || r.city) !== filters.area) return false;
       if (filters.price && String(r.price) !== filters.price) return false;
-      if (filters.min && !(r.overall != null && r.overall >= Number(filters.min))) return false;
+      if (section === 'been') {
+        if (tierMin != null && !(r.overall != null && Math.round(r.overall * 10) / 10 >= tierMin)) return false;
+        if (filters.meal && !r.meals.includes(filters.meal)) return false;
+      }
       return true;
     });
     const mult = sort.dir === 'asc' ? 1 : -1;
@@ -62,58 +77,105 @@ export default function ListView({ rows, loc, loading, onLocate, onSelect }) {
       const va = sortValue(a, sort.key);
       const vb = sortValue(b, sort.key);
       if (va == null && vb == null) return a.name.localeCompare(b.name);
-      if (va == null) return 1; // blanks always last
+      if (va == null) return 1;
       if (vb == null) return -1;
       if (va < vb) return -1 * mult;
       if (va > vb) return 1 * mult;
       return a.name.localeCompare(b.name);
     });
-  }, [rows, filters, sort]);
+  }, [base, filters, sort, section]);
 
   const changeSort = (key) => {
-    setSort({ key, dir: defaultDir(key) });
+    setSorts((s) => ({ ...s, [section]: { key, dir: defaultDir(key) } }));
     if (key === 'distance' && !loc) onLocate();
   };
-
+  const flipDir = () =>
+    setSorts((s) => ({ ...s, [section]: { ...s[section], dir: s[section].dir === 'asc' ? 'desc' : 'asc' } }));
   const setF = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
+  const userLabel = PEOPLE.find((p) => p.key === user)?.label;
 
   return (
     <div className="list-view">
+      {/* The boxes printed across the top of a guest check */}
+      <div className="check-head" role="tablist">
+        <button
+          role="tab"
+          aria-selected={section === 'been'}
+          className={`box ${section === 'been' ? 'on' : ''}`}
+          onClick={() => setSection('been')}
+        >
+          <span className="box-label">Been</span>
+          <span className="box-value">{been.length}</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={section === 'try'}
+          className={`box ${section === 'try' ? 'on' : ''}`}
+          onClick={() => setSection('try')}
+        >
+          <span className="box-label">To try</span>
+          <span className="box-value">{toTry.length}</span>
+        </button>
+        <button className="box server" onClick={onSwitchUser} title="Switch who's rating on this phone">
+          <span className="box-label">Server</span>
+          <span className="box-value">{userLabel}</span>
+        </button>
+      </div>
+
       <div className="list-controls">
-        <div className="search">
-          <SearchIcon />
-          <input
-            type="search"
-            placeholder="Search name, cuisine, area…"
-            value={filters.q}
-            onChange={(e) => setF('q', e.target.value)}
-          />
-        </div>
-        <div className="row gap">
-          <select value={sort.key} onChange={(e) => changeSort(e.target.value)} aria-label="Sort by">
-            {SORTS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn small"
-            onClick={() => setSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))}
-            aria-label="Reverse sort"
-          >
-            {sort.dir === 'asc' ? '↑' : '↓'}
+        <input
+          className="lined-input"
+          type="search"
+          placeholder={section === 'been' ? 'Search restaurants' : 'Search your try list'}
+          value={filters.q}
+          onChange={(e) => setF('q', e.target.value)}
+        />
+        <div className="control-row">
+          <label className="sort">
+            <span>Sort</span>
+            <select value={sort.key} onChange={(e) => changeSort(e.target.value)}>
+              {sortOptions.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="text-btn" onClick={flipDir} aria-label="Reverse order">
+            {sort.dir === 'asc' ? 'Low to high' : 'High to low'}
           </button>
-          <button
-            className={`btn small ${activeFilterCount ? 'primary' : ''}`}
-            onClick={() => setShowFilters((s) => !s)}
-          >
-            Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
+          <button className={`text-btn ${activeFilterCount ? 'on' : ''}`} onClick={() => setShowFilters((s) => !s)}>
+            Filter{activeFilterCount ? ` (${activeFilterCount})` : ''}
           </button>
         </div>
 
         {showFilters && (
           <div className="filters">
+            {section === 'been' && (
+              <label>
+                Rating
+                <select value={filters.tier} onChange={(e) => setF('tier', e.target.value)}>
+                  <option value="">Any</option>
+                  {TIERS.slice(0, 4).map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.label}
+                      {t.key === 'excellent' ? '' : ' or better'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {section === 'been' && (
+              <label>
+                Meal
+                <select value={filters.meal} onChange={(e) => setF('meal', e.target.value)}>
+                  <option value="">Any</option>
+                  {MEALS.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label>
               Cuisine
               <select value={filters.cuisine} onChange={(e) => setF('cuisine', e.target.value)}>
@@ -143,18 +205,7 @@ export default function ListView({ rows, loc, loading, onLocate, onSelect }) {
                 ))}
               </select>
             </label>
-            <label>
-              Min overall
-              <select value={filters.min} onChange={(e) => setF('min', e.target.value)}>
-                <option value="">Any</option>
-                {[5, 6, 7, 8, 9].map((m) => (
-                  <option key={m} value={String(m)}>
-                    {m}+
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button className="btn small" onClick={() => setFilters({ ...EMPTY_FILTERS, q: filters.q })}>
+            <button className="text-btn" onClick={() => setFilters({ ...EMPTY_FILTERS, q: filters.q })}>
               Clear filters
             </button>
           </div>
@@ -162,46 +213,61 @@ export default function ListView({ rows, loc, loading, onLocate, onSelect }) {
 
         {sort.key === 'distance' && !loc && (
           <div className="banner">
-            Distance needs your location.{' '}
+            Sorting by distance needs your location.
             <button className="btn small" onClick={onLocate}>
-              Allow location
+              Allow
             </button>
           </div>
         )}
-        <div className="count">
-          {loading ? 'Loading…' : `${list.length} restaurant${list.length === 1 ? '' : 's'}`}
-        </div>
       </div>
 
-      <ul className="check">
-        {list.map((r) => (
+      <ol className="check-lines">
+        {list.map((r, i) => (
           <li key={r.id}>
-            <button className="check-row" onClick={() => onSelect(r.id)}>
-              <div className="check-main">
-                <div className="check-name">{r.name}</div>
+            <button className="line-row" onClick={() => onSelect(r.id)}>
+              <span className="line-no">{i + 1}</span>
+              <Thumb row={r} />
+              <span className="line-main">
+                <span className="line-name">{r.name}</span>
                 <Meta row={r} />
-                <div className="people">
-                  {PEOPLE.map((p) => (
-                    <span key={p.key}>
-                      {p.label}
-                      <b>{fmtScore(r.avg[p.key])}</b>
-                    </span>
-                  ))}
-                  <span>
-                    {r.visits.length} visit{r.visits.length === 1 ? '' : 's'}
-                    {r.lastVisit ? `, last ${fmtDate(r.lastVisit)}` : ''}
+                {section === 'been' ? (
+                  <span className="line-people">
+                    {PEOPLE.map((p) => (
+                      <span key={p.key}>
+                        {p.label} <b>{fmtScore(r.avg[p.key])}</b>
+                      </span>
+                    ))}
+                    {r.visits.length > 1 && <span>{r.visits.length} visits</span>}
+                    {r.lastVisit && <span>{fmtDate(r.lastVisit)}</span>}
                   </span>
-                </div>
-                {r.distance != null && <div className="meta">{fmtMiles(r.distance)} away</div>}
-              </div>
-              <div className={`check-total${r.overall == null ? ' none' : ''}`}>{fmtScore(r.overall)}</div>
+                ) : (
+                  <span className="line-people">
+                    {r.recommended_by && <span>From {r.recommended_by}</span>}
+                    {r.try_notes && <span className="clip">{r.try_notes}</span>}
+                  </span>
+                )}
+              </span>
+              <span className="line-amount">
+                {section === 'been' ? (
+                  <Score value={r.overall} />
+                ) : (
+                  <span className="dist">{r.distance != null ? fmtMiles(r.distance) : ''}</span>
+                )}
+                {section === 'been' && r.distance != null && <span className="dist">{fmtMiles(r.distance)}</span>}
+              </span>
             </button>
           </li>
         ))}
-      </ul>
-      {!loading && rows.length === 0 && (
-        <p className="empty">No restaurants yet. Tap + to add your first.</p>
+      </ol>
+
+      {!loading && base.length === 0 && (
+        <p className="empty">
+          {section === 'been'
+            ? 'Nothing here yet. Tap + to log your first visit.'
+            : 'No places saved yet. Tap + and choose "Add to try list".'}
+        </p>
       )}
+      {!loading && base.length > 0 && list.length === 0 && <p className="empty">No matches for those filters.</p>}
     </div>
   );
 }
