@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PEOPLE } from '../config';
 import { fmtDate, fmtMiles, fmtScore, priceLabel, store } from '../utils';
+import Meta from './Meta';
+import { SearchIcon } from './Icons';
 
 const SORTS = [
   { key: 'overall', label: 'Overall rating' },
@@ -78,12 +80,15 @@ export default function ListView({ rows, loc, loading, onLocate, onSelect }) {
   return (
     <div className="list-view">
       <div className="list-controls">
-        <input
-          type="search"
-          placeholder="Search name, cuisine, area…"
-          value={filters.q}
-          onChange={(e) => setF('q', e.target.value)}
-        />
+        <div className="search">
+          <SearchIcon />
+          <input
+            type="search"
+            placeholder="Search name, cuisine, area…"
+            value={filters.q}
+            onChange={(e) => setF('q', e.target.value)}
+          />
+        </div>
         <div className="row gap">
           <select value={sort.key} onChange={(e) => changeSort(e.target.value)} aria-label="Sort by">
             {SORTS.map((s) => (
@@ -163,31 +168,33 @@ export default function ListView({ rows, loc, loading, onLocate, onSelect }) {
             </button>
           </div>
         )}
-        <div className="muted small">
+        <div className="count">
           {loading ? 'Loading…' : `${list.length} restaurant${list.length === 1 ? '' : 's'}`}
         </div>
       </div>
 
-      <ul className="cards">
+      <ul className="check">
         {list.map((r) => (
           <li key={r.id}>
-            <button className="card" onClick={() => onSelect(r.id)}>
-              <div className="card-main">
-                <div className="card-title">{r.name}</div>
-                <div className="muted small">
-                  {[r.cuisine, r.neighborhood || r.city, priceLabel(r.price)].filter(Boolean).join(' · ')}
+            <button className="check-row" onClick={() => onSelect(r.id)}>
+              <div className="check-main">
+                <div className="check-name">{r.name}</div>
+                <Meta row={r} />
+                <div className="people">
+                  {PEOPLE.map((p) => (
+                    <span key={p.key}>
+                      {p.label}
+                      <b>{fmtScore(r.avg[p.key])}</b>
+                    </span>
+                  ))}
+                  <span>
+                    {r.visits.length} visit{r.visits.length === 1 ? '' : 's'}
+                    {r.lastVisit ? `, last ${fmtDate(r.lastVisit)}` : ''}
+                  </span>
                 </div>
-                <div className="small">
-                  {PEOPLE.map((p) => `${p.label} ${fmtScore(r.avg[p.key])}`).join(' · ')}
-                  {' · '}
-                  {r.visits.length} visit{r.visits.length === 1 ? '' : 's'}
-                </div>
-                <div className="muted small">
-                  {r.lastVisit ? `Last: ${fmtDate(r.lastVisit)}` : 'No visits'}
-                  {r.distance != null ? ` · ${fmtMiles(r.distance)}` : ''}
-                </div>
+                {r.distance != null && <div className="meta">{fmtMiles(r.distance)} away</div>}
               </div>
-              <div className="score-badge">{fmtScore(r.overall)}</div>
+              <div className={`check-total${r.overall == null ? ' none' : ''}`}>{fmtScore(r.overall)}</div>
             </button>
           </li>
         ))}

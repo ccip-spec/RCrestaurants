@@ -282,7 +282,7 @@ export default function VisitEditor({ rows, loc, user, restaurant, visit, onClos
         <div className="muted small">
           {choice.type === 'existing' ? choice.row.address || choice.row.city : choice.place.address}
         </div>
-        {choice.type === 'new' && <div className="tag">New restaurant</div>}
+        {choice.type === 'new' && <div className="tag-new">New restaurant</div>}
       </div>
       {!lockedRestaurant && (
         <button className="btn small" onClick={resetChoice}>
@@ -312,7 +312,7 @@ export default function VisitEditor({ rows, loc, user, restaurant, visit, onClos
           onChange={(e) => setManualAddress(e.target.value)}
         />
       </label>
-      <label className="check">
+      <label className="check-label">
         <input type="checkbox" checked={useHere} onChange={(e) => setUseHere(e.target.checked)} />
         I'm here now. Use my location for the map pin.
       </label>

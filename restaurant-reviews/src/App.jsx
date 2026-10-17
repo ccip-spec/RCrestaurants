@@ -6,6 +6,7 @@ import MapView from './components/MapView';
 import ListView from './components/ListView';
 import RestaurantDetail from './components/RestaurantDetail';
 import VisitEditor from './components/VisitEditor';
+import { MapIcon, ListIcon, PlusIcon } from './components/Icons';
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -95,8 +96,8 @@ export default function App() {
   if (!user) {
     return (
       <div className="center-screen">
-        <h1>{APP_NAME}</h1>
-        <p>Who's using this phone?</p>
+        <h1 className="wordmark">{APP_NAME}</h1>
+        <p className="muted">Who's using this phone?</p>
         <div className="user-pick">
           {PEOPLE.map((p) => (
             <button key={p.key} className="btn primary big" onClick={() => pickUser(p.key)}>
@@ -113,15 +114,15 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>{APP_NAME}</h1>
+        <h1 className="wordmark">{APP_NAME}</h1>
         <button
-          className="chip"
+          className="who"
           onClick={() => {
             if (confirm('Switch user on this device?')) pickUser(null);
           }}
           title="Switch user"
         >
-          {userLabel}
+          Rating as<b>{userLabel}</b>
         </button>
       </header>
 
@@ -157,13 +158,15 @@ export default function App() {
 
       <nav className="tabbar">
         <button className={tab === 'map' ? 'active' : ''} onClick={() => setTab('map')}>
-          <span className="tab-icon">◉</span>Map
+          <MapIcon />
+          Map
         </button>
         <button className="add-btn" onClick={() => setEditor({})} aria-label="Add a visit">
-          +
+          <PlusIcon />
         </button>
         <button className={tab === 'list' ? 'active' : ''} onClick={() => setTab('list')}>
-          <span className="tab-icon">☰</span>List
+          <ListIcon />
+          List
         </button>
       </nav>
 

@@ -3,53 +3,47 @@ import { supabase, photoUrl, PHOTO_BUCKET } from '../supabase';
 import { PEOPLE } from '../config';
 import { fmtDate, fmtMiles, fmtMoney, fmtScore, mapsUrl, priceLabel, visitAvg } from '../utils';
 import Sheet from './Sheet';
-
-function Stat({ label, value, big }) {
-  return (
-    <div className={`stat ${big ? 'big' : ''}`}>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  );
-}
+import Meta from './Meta';
+import { EditIcon, TrashIcon, PinIcon } from './Icons';
 
 function VisitCard({ visit, onEdit, onDelete }) {
   return (
     <div className="visit">
       <div className="visit-head">
-        <strong>{fmtDate(visit.visit_date)}</strong>
-        <div className="row gap">
-          <button className="btn small" onClick={onEdit}>
-            Edit
+        <span className="visit-date">{fmtDate(visit.visit_date)}</span>
+        <div className="visit-actions">
+          <button className="icon-btn" onClick={onEdit} aria-label="Edit visit">
+            <EditIcon />
           </button>
-          <button className="btn small danger" onClick={onDelete}>
-            Delete
+          <button className="icon-btn danger" onClick={onDelete} aria-label="Delete visit">
+            <TrashIcon />
           </button>
         </div>
       </div>
       <div className="visit-scores">
         {PEOPLE.map((p) => (
           <span key={p.key}>
-            {p.label} <b>{fmtScore(visit[`${p.key}_score`])}</b>
+            {p.label}
+            <b>{fmtScore(visit[`${p.key}_score`])}</b>
           </span>
         ))}
-        <span>
-          Avg <b>{fmtScore(visitAvg(visit))}</b>
+        <span className="avg">
+          Avg
+          <b>{fmtScore(visitAvg(visit))}</b>
         </span>
       </div>
-      {(visit.would_return != null || visit.cost != null) && (
-        <div className="muted small">
-          {visit.would_return != null && (visit.would_return ? 'Would go back' : "Wouldn't go back")}
-          {visit.would_return != null && visit.cost != null ? ' · ' : ''}
-          {visit.cost != null && fmtMoney(visit.cost)}
+      {(visit.would_return != null || visit.cost != null || visit.dishes) && (
+        <div className="visit-facts">
+          {visit.would_return != null && (
+            <span className={visit.would_return ? 'yes' : ''}>
+              {visit.would_return ? 'Would go back' : "Wouldn't go back"}
+            </span>
+          )}
+          {visit.cost != null && <span>{fmtMoney(visit.cost)}</span>}
+          {visit.dishes && <span>Ordered: {visit.dishes}</span>}
         </div>
       )}
-      {visit.dishes && (
-        <p className="small">
-          <b>Ordered:</b> {visit.dishes}
-        </p>
-      )}
-      {visit.notes && <p className="small notes">{visit.notes}</p>}
+      {visit.notes && <p className="visit-notes">{visit.notes}</p>}
       {visit.photos?.length > 0 && (
         <div className="thumbs">
           {visit.photos.map((p) => (
@@ -116,31 +110,43 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
     onDeleted();
   };
 
-  const meta = [row.cuisine, row.neighborhood || row.city, priceLabel(row.price)].filter(Boolean).join(' · ');
-
   return (
     <Sheet title={row.name} onClose={onClose}>
-      {meta && <div className="muted">{meta}</div>}
+      <Meta row={row} />
       {row.lat != null && (
         <a className="addr" href={mapsUrl(row)} target="_blank" rel="noreferrer">
-          {row.address || 'Open in Maps'} ↗
+          <PinIcon />
+          {row.address || 'Open in Maps'}
         </a>
       )}
-      {row.distance != null && <div className="muted small">{fmtMiles(row.distance)} away</div>}
+      {row.distance != null && <div className="distance">{fmtMiles(row.distance)} away</div>}
 
-      <div className="stats">
-        <Stat label="Overall" value={fmtScore(row.overall)} big />
-        {PEOPLE.map((p) => (
-          <Stat key={p.key} label={p.label} value={fmtScore(row.avg[p.key])} />
-        ))}
-        <Stat label="Visits" value={row.visits.length} />
+      <div className="tally">
+        <div className="tally-overall">
+          <span className="num">{fmtScore(row.overall)}</span>
+          <span className="lbl">Overall</span>
+        </div>
+        <div className="tally-lines">
+          {PEOPLE.map((p) => (
+            <div className="line" key={p.key}>
+              <span>{p.label}'s average</span>
+              <span className="dots" />
+              <b>{fmtScore(row.avg[p.key])}</b>
+            </div>
+          ))}
+          <div className="line">
+            <span>Visits</span>
+            <span className="dots" />
+            <b>{row.visits.length}</b>
+          </div>
+        </div>
       </div>
 
       <button className="btn primary block" onClick={() => onAddVisit(row)}>
-        + Add a visit
+        Add a visit
       </button>
 
-      <h3>Visits</h3>
+      <h3 className="section-title">Visits</h3>
       {row.visits.length === 0 && <p className="muted">No visits logged yet.</p>}
       {row.visits.map((v) => (
         <VisitCard

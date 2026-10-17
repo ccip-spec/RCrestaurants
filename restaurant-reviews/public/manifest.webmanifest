@@ -3,8 +3,8 @@
   "short_name": "Our Eats",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf6f0",
-  "theme_color": "#b8442f",
+  "background_color": "#f3f6f1",
+  "theme_color": "#2e6a4e",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
