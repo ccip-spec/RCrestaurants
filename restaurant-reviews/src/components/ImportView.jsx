@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
-import { searchPlaces, searchAny, lookupDetails } from '../photon';
+import { searchPlaces, searchNominatim, lookupDetails } from '../photon';
 import { fmtScore } from '../utils';
 
 // One-time import of restaurants from /import.json.
@@ -27,16 +27,23 @@ export default function ImportView({ rows, user, onDone }) {
   const existingByName = Object.fromEntries(rows.map((r) => [r.name.toLowerCase(), r]));
 
   async function searchOne(entry) {
+    const q = entry.query.trim();
+    const withCity = /philadelphia/i.test(q) ? q : `${q}, Philadelphia`;
+    let results = [];
     try {
-      // A query starting with a number is a street address: search addresses instead of restaurants.
-      const results = /^\d/.test(entry.query.trim())
-        ? await searchAny(entry.query, null, 4)
-        : (await searchPlaces(entry.query, null, undefined, 6)).slice(0, 6);
-      const best = results.find((p) => p.isFood) || results[0] || null;
-      return { ...entry, results, pick: best ? best.osm_ref : NO_PIN, status: best ? 'found' : 'none' };
+      results = await searchNominatim(withCity, 5);
     } catch {
-      return { ...entry, results: [], pick: NO_PIN, status: 'error' };
+      /* fall through to Photon */
     }
+    if (!results.length && !/^\d/.test(q)) {
+      try {
+        results = (await searchPlaces(q, null, undefined, 5)).slice(0, 5);
+      } catch {
+        /* no results */
+      }
+    }
+    const best = /^\d/.test(q) ? results[0] : results.find((p) => p.isFood) || results[0];
+    return { ...entry, results, pick: best ? best.osm_ref : NO_PIN, status: best ? 'found' : 'none' };
   }
 
   async function findAll() {
@@ -45,7 +52,7 @@ export default function ImportView({ rows, user, onDone }) {
     for (let i = 0; i < entries.length; i++) {
       setProgress(`Searching ${i + 1} of ${entries.length}: ${entries[i].name}`);
       out.push(await searchOne(entries[i]));
-      await wait(250);
+      await wait(1100); // Nominatim allows 1 request per second
     }
     setEntries(out);
     setProgress('');

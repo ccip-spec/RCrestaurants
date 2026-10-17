@@ -1,7 +1,7 @@
 [
  {
   "name": "Giuseppe & Sons",
-  "query": "Giuseppe & Sons",
+  "query": "1523 Sansom Street",
   "meal": "Dinner",
   "c": 9.2,
   "r": 9.3
@@ -15,14 +15,14 @@
  },
  {
   "name": "My Loup",
-  "query": "My Loup",
+  "query": "2005 Walnut Street",
   "meal": "Dinner",
   "c": 8.1,
   "r": 8.6
  },
  {
   "name": "Saloon",
-  "query": "Saloon",
+  "query": "750 South 7th Street",
   "meal": "Dinner",
   "c": 8.3,
   "r": 8.6
@@ -36,7 +36,7 @@
  },
  {
   "name": "Fiorella",
-  "query": "Fiorella",
+  "query": "817 Christian Street",
   "meal": "Dinner",
   "c": 8.2,
   "r": 8.0
@@ -71,7 +71,7 @@
  },
  {
   "name": "Double Knot",
-  "query": "Double Knot",
+  "query": "120 South 13th Street",
   "meal": "Dinner",
   "c": 6.9,
   "r": 7.3
@@ -99,14 +99,14 @@
  },
  {
   "name": "Via Locusta",
-  "query": "Via Locusta",
+  "query": "1723 Locust Street",
   "meal": "Dinner",
   "c": 8.6,
   "r": 8.6
  },
  {
   "name": "Her Place",
-  "query": "Her Place Supper Club",
+  "query": "1740 Sansom Street",
   "meal": "Dinner",
   "c": 8.5,
   "r": 8.8
@@ -121,7 +121,7 @@
  },
  {
   "name": "El Techo",
-  "query": "El Techo",
+  "query": "1830 Ludlow Street",
   "meal": "Dinner",
   "c": 7.5,
   "r": 7.4
@@ -163,7 +163,7 @@
  },
  {
   "name": "Burrata",
-  "query": "Burrata",
+  "query": "1247 South 13th Street",
   "meal": "Dinner",
   "c": 6.8,
   "r": 6.8
@@ -177,7 +177,7 @@
  },
  {
   "name": "Adoro",
-  "query": "Adoro",
+  "query": "769 East Passyunk Avenue",
   "meal": "Dinner",
   "c": 7.7,
   "r": 7.3
@@ -198,14 +198,14 @@
  },
  {
   "name": "Hawthornes",
-  "query": "Hawthornes",
+  "query": "738 South 11th Street",
   "meal": "Brunch",
   "c": 8.2,
   "r": 7.4
  },
  {
   "name": "The Love",
-  "query": "The Love",
+  "query": "130 South 18th Street",
   "meal": "Brunch",
   "c": 6.7,
   "r": 6.8

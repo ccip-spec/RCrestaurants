@@ -72,6 +72,34 @@ export async function geocodeAddress(q, loc) {
   return places[0] || null;
 }
 
+// Nominatim search (used for the one-time import; max 1 request per second, no type-ahead use).
+export async function searchNominatim(q, limit = 5) {
+  const params = new URLSearchParams({
+    q, format: 'jsonv2', limit: String(limit), addressdetails: '1', countrycodes: 'us',
+    viewbox: '-75.35,40.15,-74.95,39.85', bounded: '0',
+  });
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
+  if (!res.ok) throw new Error(`Search failed (${res.status})`);
+  const data = await res.json();
+  return data.map((d) => {
+    const a = d.address || {};
+    const street = [a.house_number, a.road].filter(Boolean).join(' ');
+    const city = a.city || a.town || a.village || a.county || '';
+    return {
+      name: d.name || street || d.display_name.split(',')[0],
+      address: [street, city, a.state].filter(Boolean).join(', '),
+      city,
+      neighborhood: a.neighbourhood || a.suburb || a.quarter || '',
+      lat: Number(d.lat),
+      lng: Number(d.lon),
+      osm_ref: d.osm_type && d.osm_id ? `${d.osm_type[0].toUpperCase()}${d.osm_id}` : null,
+      kind: d.type || '',
+      isFood: FOOD.has(d.type),
+      cuisine: '',
+    };
+  });
+}
+
 // Website / cuisine / image for OpenStreetMap places, up to 50 per request.
 export async function lookupDetails(osmRefs) {
   const ids = [...new Set(osmRefs.filter(Boolean))];
