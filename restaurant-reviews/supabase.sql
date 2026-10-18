@@ -64,3 +64,4 @@ alter table public.restaurants add column if not exists photo text;
 alter table public.visits alter column visit_date drop not null;
 alter table public.visits add column if not exists meal text;
 alter table public.visits add column if not exists items jsonb not null default '[]'::jsonb;
+alter table public.restaurants add column if not exists meal_tags text[] not null default '{}';

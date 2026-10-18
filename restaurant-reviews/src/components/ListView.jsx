@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PEOPLE } from '../config';
-import { fmtDate, fmtMiles, fmtScore, priceLabel, store, TIERS } from '../utils';
-import { MEALS } from './VisitEditor';
+import { fmtDate, fmtMiles, fmtScore, priceLabel, store, TIERS, MEALS } from '../utils';
+import { MealTags, MealFilter } from './Meals';
 import Meta from './Meta';
 import Score from './Score';
 import Thumb from './Thumb';
@@ -54,7 +54,11 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
   const cuisines = useMemo(() => [...new Set(base.map((r) => r.cuisine).filter(Boolean))].sort(), [base]);
   const areas = useMemo(() => [...new Set(base.map((r) => r.neighborhood || r.city).filter(Boolean))].sort(), [base]);
 
-  const filterKeys = section === 'been' ? ['cuisine', 'area', 'price', 'tier', 'meal'] : ['cuisine', 'area', 'price'];
+  const filterKeys = section === 'been' ? ['cuisine', 'area', 'price', 'tier'] : ['cuisine', 'area', 'price'];
+  const mealCounts = useMemo(
+    () => Object.fromEntries(MEALS.map((m) => [m, base.filter((r) => r.meals.includes(m)).length])),
+    [base]
+  );
   const activeFilterCount = filterKeys.filter((k) => filters[k] !== '').length;
 
   const list = useMemo(() => {
@@ -68,8 +72,8 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
       if (filters.price && String(r.price) !== filters.price) return false;
       if (section === 'been') {
         if (tierMin != null && !(r.overall != null && Math.round(r.overall * 10) / 10 >= tierMin)) return false;
-        if (filters.meal && !r.meals.includes(filters.meal)) return false;
       }
+      if (filters.meal && !r.meals.includes(filters.meal)) return false;
       return true;
     });
     const mult = sort.dir === 'asc' ? 1 : -1;
@@ -149,6 +153,8 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
           </button>
         </div>
 
+        <MealFilter value={filters.meal} onChange={(v) => setF('meal', v)} counts={mealCounts} />
+
         {showFilters && (
           <div className="filters">
             {section === 'been' && (
@@ -161,17 +167,6 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
                       {t.label}
                       {t.key === 'excellent' ? '' : ' or better'}
                     </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {section === 'been' && (
-              <label>
-                Meal
-                <select value={filters.meal} onChange={(e) => setF('meal', e.target.value)}>
-                  <option value="">Any</option>
-                  {MEALS.map((m) => (
-                    <option key={m}>{m}</option>
                   ))}
                 </select>
               </label>
@@ -230,6 +225,7 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
               <span className="line-main">
                 <span className="line-name">{r.name}</span>
                 <Meta row={r} />
+                <MealTags meals={r.meals} />
                 {section === 'been' ? (
                   <span className="line-people">
                     {PEOPLE.map((p) => (

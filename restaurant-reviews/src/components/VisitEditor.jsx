@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase, photoUrl, PHOTO_BUCKET } from '../supabase';
 import { PEOPLE } from '../config';
 import { ensureRestaurant } from '../restaurants';
-import { compressImage, parseScore, priceLabel, todayISO } from '../utils';
+import { compressImage, parseScore, priceLabel, todayISO, MEALS } from '../utils';
 import PlacePicker, { ChosenPlace } from './PlacePicker';
 import Sheet from './Sheet';
 
-export const MEALS = ['Brunch', 'Lunch', 'Dinner', 'Drinks'];
 
 function newId() {
   if (crypto.randomUUID) return crypto.randomUUID();

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { PEOPLE, HOME_CENTER, LOCAL_RADIUS_MILES } from '../config';
 import { fmtScore, haversineMiles, priceLabel, store, tierOf } from '../utils';
+import { MealFilter } from './Meals';
 
 // Below this zoom, tags show only the score so names don't pile up.
 const NAME_ZOOM = 12;
@@ -62,6 +63,8 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
   selectRef.current = onSelect;
   const [show, setShow] = useState(() => store.get('rr_mapshow', { been: true, try: true }));
   useEffect(() => store.set('rr_mapshow', show), [show]);
+  const [meal, setMeal] = useState(() => store.get('rr_mapmeal', ''));
+  useEffect(() => store.set('rr_mapmeal', meal), [meal]);
 
   // Create the map once.
   useEffect(() => {
@@ -91,6 +94,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
     for (const r of rows) {
       if (r.lat == null || r.lng == null) continue;
       if (r.been ? !show.been : !show.try) continue;
+      if (meal && !r.meals.includes(meal)) continue;
       const tier = tierOf(r.overall);
       const left = r.been
         ? `<span class="tag-score${tier ? ` t-${tier.key}` : ' none'}">${fmtScore(r.overall)}</span>`
@@ -122,7 +126,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
       const near = all.filter(([la, ln]) => haversineMiles(c.lat, c.lng, la, ln) <= LOCAL_RADIUS_MILES);
       fitTo(map, near.length ? near : all);
     }
-  }, [rows, loc, show]);
+  }, [rows, loc, show, meal]);
 
   // Your location dot.
   useEffect(() => {
@@ -154,7 +158,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
 
   const showAll = () => {
     const pts = rows
-      .filter((r) => r.lat != null && (r.been ? show.been : show.try))
+      .filter((r) => r.lat != null && (r.been ? show.been : show.try) && (!meal || r.meals.includes(meal)))
       .map((r) => [r.lat, r.lng]);
     fitTo(mapRef.current, pts);
   };
@@ -178,6 +182,9 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
         <button className="chip plain" onClick={showAll} disabled={!rows.length}>
           Show all
         </button>
+        <div className="map-meals">
+          <MealFilter value={meal} onChange={setMeal} />
+        </div>
       </div>
       {empty && <div className="map-empty">No restaurants yet. Tap + to log your first visit.</div>}
     </div>

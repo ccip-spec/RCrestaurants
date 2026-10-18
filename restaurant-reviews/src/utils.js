@@ -14,6 +14,8 @@ export function fmtScore(n) {
   return n == null ? '–' : (Math.round(n * 10) / 10).toFixed(1);
 }
 
+export const MEALS = ['Breakfast', 'Brunch', 'Lunch', 'Dinner', 'Drinks'];
+
 // Your rating scale
 export const TIERS = [
   { min: 8.6, label: 'Excellent', key: 'excellent' },
@@ -138,7 +140,7 @@ export function buildRows(restaurants, visits, loc) {
       avg,
       overall,
       lastVisit: vs.find((v) => v.visit_date)?.visit_date || null,
-      meals: [...new Set(vs.map((v) => v.meal).filter(Boolean))],
+      meals: MEALS.filter((m) => vs.some((v) => v.meal === m) || (r.meal_tags || []).includes(m)),
       distance,
     };
   });

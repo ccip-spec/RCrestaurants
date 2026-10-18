@@ -4,11 +4,13 @@ import { ensureRestaurant } from '../restaurants';
 import { fmtScore } from '../utils';
 import PlacePicker, { ChosenPlace } from './PlacePicker';
 import Sheet from './Sheet';
+import { MealPicker } from './Meals';
 
 export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
   const [choice, setChoice] = useState(null);
   const [recommendedBy, setRecommendedBy] = useState('');
   const [notes, setNotes] = useState('');
+  const [meals, setMeals] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -27,6 +29,7 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
             want_to_try: true,
             recommended_by: recommendedBy.trim() || choice.row.recommended_by || null,
             try_notes: notes.trim() || choice.row.try_notes || null,
+            meal_tags: [...new Set([...(choice.row.meal_tags || []), ...meals])],
           })
           .eq('id', id);
         if (e) throw e;
@@ -34,7 +37,7 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
         ({ id } = await ensureRestaurant(choice, {
           loc,
           user,
-          fields: { want_to_try: true, recommended_by: recommendedBy.trim(), try_notes: notes.trim() },
+          fields: { want_to_try: true, recommended_by: recommendedBy.trim(), try_notes: notes.trim(), meal_tags: meals },
         }));
       }
       onSaved(id);
@@ -79,6 +82,10 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
                   onChange={(e) => setRecommendedBy(e.target.value)}
                 />
               </label>
+              <div className="field">
+                <span>Good for</span>
+                <MealPicker value={meals} onChange={setMeals} />
+              </div>
               <label>
                 Notes
                 <textarea

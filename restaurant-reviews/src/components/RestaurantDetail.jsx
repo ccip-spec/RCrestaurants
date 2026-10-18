@@ -6,6 +6,7 @@ import Sheet from './Sheet';
 import Meta from './Meta';
 import Score from './Score';
 import Thumb, { picturePath } from './Thumb';
+import { MealTags, MealPicker } from './Meals';
 
 function VisitBlock({ visit, onEdit, onDelete }) {
   const items = visit.items || [];
@@ -92,6 +93,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
       website: row.website || '',
       recommended_by: row.recommended_by || '',
       try_notes: row.try_notes || '',
+      meal_tags: row.meal_tags || [],
     });
     setEditing(true);
   };
@@ -109,6 +111,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
         website: info.website.trim() || null,
         recommended_by: info.recommended_by.trim() || null,
         try_notes: info.try_notes.trim() || null,
+        meal_tags: info.meal_tags,
       })
       .eq('id', row.id);
     setBusy(false);
@@ -180,6 +183,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
         {!hasCover && <Thumb row={row} size="lg" />}
         <div className="detail-facts">
           <Meta row={row} />
+          <MealTags meals={row.meals} />
           {row.lat != null && (
             <a className="addr" href={mapsUrl(row)} target="_blank" rel="noreferrer">
               {row.address || 'Open in Maps'}
@@ -298,6 +302,10 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
                 onChange={(e) => setInfo({ ...info, website: e.target.value })}
               />
             </label>
+            <div className="field">
+              <span>Good for</span>
+              <MealPicker value={info.meal_tags} onChange={(v) => setInfo({ ...info, meal_tags: v })} />
+            </div>
             <label>
               Recommended by
               <input value={info.recommended_by} onChange={(e) => setInfo({ ...info, recommended_by: e.target.value })} />
