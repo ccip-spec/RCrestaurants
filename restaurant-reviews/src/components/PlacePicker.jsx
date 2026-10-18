@@ -21,7 +21,7 @@ export async function findRestaurants(q, loc, signal) {
   };
   let all = [...osmList, ...phlList];
   // Hide far-away namesakes (London, Paraguay...) when there are matches nearby.
-  const near = all.filter((p) => haversineMiles(c.lat, c.lng, p.lat, p.lng) <= 100);
+  const near = all.filter((p) => haversineMiles(c.lat, c.lng, p.lat, p.lng) <= 40);
   if (near.length) all = near;
   return all.sort((a, b) => score(a) - score(b)).slice(0, 12);
 }

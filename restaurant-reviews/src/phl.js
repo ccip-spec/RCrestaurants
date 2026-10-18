@@ -128,5 +128,5 @@ export function samePlace(a, b) {
 }
 
 // Big chains and non-restaurants that crowd the nearby list.
-const CHAINS = /\b(starbucks|dunkin|mcdonald|subway|wawa|7[- ]?eleven|chipotle|wendy|burger king|popeyes|kfc|taco bell|domino|papa john|pizza hut|sweetgreen|panera|chick[- ]?fil|dollar|cvs|rite aid|walgreens|aramark|sodexo|school|hospital|university|cafeteria|church|shoprite|acme|giant|whole foods|trader joe|target|walmart|gas|sunoco|exxon)\b/i;
+const CHAINS = /\b(starbucks|dunkin|mcdonald|subway|wawa|7[- ]?eleven|chipotle|wendy|burger king|popeyes|kfc|taco bell|domino|papa john|pizza hut|sweetgreen|panera|chick[- ]?fil|dollar|cvs|rite aid|walgreens|aramark|sodexo|school|hospital|university|cafeteria|church|shoprite|acme|giant|whole foods|trader joe|target|walmart|gas|sunoco|exxon|five guys|shake shack|potbelly|jersey mike|jimmy john|qdoba|cava|cosi|au bon pain|child ?care|day ?care|bright horizons|learning|academy|nursing|senior|marriott|hilton|sheraton|hyatt|hotel|element|ritz|stadium|arena|lincoln financial|wells fargo center)\b/i;
 export const isChain = (name) => CHAINS.test(name);
