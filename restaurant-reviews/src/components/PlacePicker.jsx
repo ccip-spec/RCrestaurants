@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { searchPlaces } from '../photon';
+import { searchPlaces, searchNominatim } from '../photon';
 
 // Search for a restaurant (your list first, then OpenStreetMap), or enter one by hand.
 export default function PlacePicker({ rows, loc, onChoose }) {
@@ -27,7 +27,7 @@ export default function PlacePicker({ rows, loc, onChoose }) {
         setResults(await searchPlaces(q, loc, ctrl.signal));
         setSearchError(null);
       } catch (e) {
-        if (e.name !== 'AbortError') setSearchError('Search is unavailable right now. Add it by hand instead.');
+        if (e.name !== 'AbortError') setSearchError('unavailable');
       } finally {
         if (!ctrl.signal.aborted) setSearching(false);
       }
@@ -108,7 +108,26 @@ export default function PlacePicker({ rows, loc, onChoose }) {
       {query.trim().length >= 2 && (
         <div className="results">
           <div className="results-label">{searching ? 'Searching' : 'Places'}</div>
-          {searchError && <div className="muted small">{searchError}</div>}
+          {searchError && (
+            <div className="row gap wrap">
+              <span className="muted small">Quick search isn't responding.</span>
+              <button
+                className="text-btn"
+                onClick={async () => {
+                  setSearching(true);
+                  try {
+                    setResults(await searchNominatim(`${query.trim()}, Philadelphia`, 8));
+                    setSearchError(null);
+                  } catch {
+                    setSearchError('unavailable');
+                  }
+                  setSearching(false);
+                }}
+              >
+                Search a different way
+              </button>
+            </div>
+          )}
           {!searching && !searchError && results.length === 0 && (
             <div className="muted small">No matches. Try another spelling or add it by hand.</div>
           )}
