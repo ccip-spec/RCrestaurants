@@ -19,7 +19,11 @@ export async function findRestaurants(q, loc, signal) {
     const rank = n === nq ? 0 : n.startsWith(nq) ? 1 : n.includes(nq) ? 2 : 3;
     return rank * 1000 + haversineMiles(c.lat, c.lng, p.lat, p.lng);
   };
-  return [...osmList, ...phlList].sort((a, b) => score(a) - score(b)).slice(0, 12);
+  let all = [...osmList, ...phlList];
+  // Hide far-away namesakes (London, Paraguay...) when there are matches nearby.
+  const near = all.filter((p) => haversineMiles(c.lat, c.lng, p.lat, p.lng) <= 100);
+  if (near.length) all = near;
+  return all.sort((a, b) => score(a) - score(b)).slice(0, 12);
 }
 
 // Search for a restaurant (your list first, then OpenStreetMap), or enter one by hand.
@@ -129,26 +133,8 @@ export default function PlacePicker({ rows, loc, onChoose }) {
       {query.trim().length >= 2 && (
         <div className="results">
           <div className="results-label">{searching ? 'Searching' : 'Places'}</div>
-          {searchError && (
-            <div className="row gap wrap">
-              <span className="muted small">Quick search isn't responding.</span>
-              <button
-                className="text-btn"
-                onClick={async () => {
-                  setSearching(true);
-                  try {
-                    setResults(await searchNominatim(`${query.trim()}, Philadelphia`, 8));
-                    setSearchError(null);
-                  } catch {
-                    setSearchError('unavailable');
-                  }
-                  setSearching(false);
-                }}
-              >
-                Search a different way
-              </button>
-            </div>
-          )}
+          {searchError && <span className="muted small">Quick search isn't responding.</span>}
+
           {!searching && !searchError && results.length === 0 && (
             <div className="muted small">No matches. Try another spelling or add it by hand.</div>
           )}
@@ -158,6 +144,24 @@ export default function PlacePicker({ rows, loc, onChoose }) {
               <span className="muted small">{p.address || p.kind.replace(/_/g, ' ')}</span>
             </button>
           ))}
+          {!searching && (
+            <button
+              className="text-btn"
+              onClick={async () => {
+                setSearching(true);
+                try {
+                  const more = await searchNominatim(`${query.trim()}, Philadelphia`, 8);
+                  setResults((cur) => [...cur, ...more.filter((m) => !cur.some((c) => c.osm_ref === m.osm_ref))]);
+                  setSearchError(null);
+                } catch {
+                  setSearchError('unavailable');
+                }
+                setSearching(false);
+              }}
+            >
+              Not here? Search more places
+            </button>
+          )}
         </div>
       )}
 
