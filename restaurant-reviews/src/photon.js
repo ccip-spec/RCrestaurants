@@ -64,6 +64,17 @@ export async function searchAny(q, loc, limit = 6) {
   return query(params);
 }
 
+// OpenStreetMap food places near a point (used outside Philadelphia city limits).
+export async function nearbyOsm(loc, radiusKm = 1, limit = 30) {
+  const c = loc || HOME_CENTER;
+  const params = new URLSearchParams({ lat: c.lat, lon: c.lng, radius: String(radiusKm), limit: String(limit), lang: 'en' });
+  for (const t of ['amenity:restaurant', 'amenity:cafe', 'amenity:fast_food', 'amenity:bar', 'amenity:pub']) params.append('osm_tag', t);
+  const res = await fetch(`https://photon.komoot.io/reverse?${params}`);
+  if (!res.ok) throw new Error(`Search failed (${res.status})`);
+  const data = await res.json();
+  return (data.features || []).map(toPlace);
+}
+
 // Address lookup for manually added restaurants.
 export async function geocodeAddress(q, loc) {
   const c = loc || HOME_CENTER;
@@ -102,7 +113,8 @@ export async function searchNominatim(q, limit = 5) {
 
 // Website / cuisine / image for OpenStreetMap places, up to 50 per request.
 export async function lookupDetails(osmRefs) {
-  const ids = [...new Set(osmRefs.filter(Boolean))];
+  // Only OpenStreetMap ids (N/W/R + number); city-license ids start with L.
+  const ids = [...new Set(osmRefs.filter((r) => /^[NWR]\d+$/.test(r || '')))];
   const out = {};
   for (let i = 0; i < ids.length; i += 50) {
     const chunk = ids.slice(i, i + 50);

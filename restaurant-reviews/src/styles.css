@@ -305,7 +305,7 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 
 .check-head {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.8fr;
+  grid-template-columns: 1fr 1fr 1fr 0.8fr;
   border: 1.5px solid var(--print);
   border-radius: 3px;
   background: var(--card);
@@ -850,3 +850,18 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 .map-meals .meal-filter button { box-shadow: 0 1px 3px rgba(31, 42, 77, 0.2); }
 .seg.multi { flex-wrap: wrap; }
 .seg button { white-space: nowrap; }
+
+/* ---------- nearby ---------- */
+.near-pin { color: var(--print); }
+.box.on .near-pin { color: var(--red); }
+.nearby { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.nearby .section-title { margin-top: 18px; }
+.check-lines.plain { border-top: none; }
+.near-row { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--rule); }
+.near-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.near-main .line-name { white-space: normal; }
+.near-actions { display: flex; gap: 16px; margin-top: 2px; }
+.near-actions .text-btn { padding: 4px 0; }
+.added { font-family: var(--hand); color: var(--red); font-size: 1rem; }
+.dist.big { font-family: var(--hand); font-size: 1rem; color: var(--pen); white-space: nowrap; }
+.source-note { margin-top: 10px; }

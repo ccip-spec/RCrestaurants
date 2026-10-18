@@ -1,5 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { searchPlaces, searchNominatim } from '../photon';
+import { searchPhilly, samePlace } from '../phl';
+import { HOME_CENTER } from '../config';
+import { haversineMiles } from '../utils';
+
+const norm = (s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+
+// City license list + OpenStreetMap, duplicates removed, best name matches and nearest first.
+export async function findRestaurants(q, loc, signal) {
+  const [phl, osm] = await Promise.allSettled([searchPhilly(q, loc, signal, 10), searchPlaces(q, loc, signal, 10)]);
+  if (phl.status === 'rejected' && osm.status === 'rejected') throw osm.reason;
+  const osmList = osm.status === 'fulfilled' ? osm.value.filter((p) => p.isFood) : [];
+  const phlList = phl.status === 'fulfilled' ? phl.value.filter((p) => !osmList.some((o) => samePlace(o, p))) : [];
+  const c = loc || HOME_CENTER;
+  const nq = norm(q);
+  const score = (p) => {
+    const n = norm(p.name);
+    const rank = n === nq ? 0 : n.startsWith(nq) ? 1 : n.includes(nq) ? 2 : 3;
+    return rank * 1000 + haversineMiles(c.lat, c.lng, p.lat, p.lng);
+  };
+  return [...osmList, ...phlList].sort((a, b) => score(a) - score(b)).slice(0, 12);
+}
 
 // Search for a restaurant (your list first, then OpenStreetMap), or enter one by hand.
 export default function PlacePicker({ rows, loc, onChoose }) {
@@ -24,7 +45,7 @@ export default function PlacePicker({ rows, loc, onChoose }) {
     const t = setTimeout(async () => {
       setSearching(true);
       try {
-        setResults(await searchPlaces(q, loc, ctrl.signal));
+        setResults(await findRestaurants(q, loc, ctrl.signal));
         setSearchError(null);
       } catch (e) {
         if (e.name !== 'AbortError') setSearchError('unavailable');
@@ -45,7 +66,7 @@ export default function PlacePicker({ rows, loc, onChoose }) {
   }, [rows, query]);
 
   const pickPlace = (place) => {
-    const existing = place.osm_ref && rows.find((r) => r.osm_ref === place.osm_ref);
+    const existing = rows.find((r) => (place.osm_ref && r.osm_ref === place.osm_ref) || samePlace(r, place));
     onChoose(existing ? { type: 'existing', row: existing } : { type: 'new', place });
   };
 

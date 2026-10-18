@@ -9,6 +9,7 @@ import VisitEditor from './components/VisitEditor';
 import TryEditor from './components/TryEditor';
 import ImportView from './components/ImportView';
 import Sheet from './components/Sheet';
+import { ensureRestaurant } from './restaurants';
 
 function useHash() {
   const [hash, setHash] = useState(() => window.location.hash);
@@ -172,6 +173,18 @@ export default function App() {
             section={section}
             onSection={setSection}
             onSwitchUser={switchUser}
+            onQuickTry={async (place) => {
+              try {
+                await ensureRestaurant({ type: 'new', place }, { loc, user, fields: { want_to_try: true } });
+                await load();
+                showToast(`${place.name} added to try list`);
+                return true;
+              } catch (e) {
+                showToast(e.message || String(e));
+                return false;
+              }
+            }}
+            onLogNew={(place) => setEditor({ kind: 'visit', choice: { type: 'new', place } })}
             onLocate={() => locate(false)}
             onSelect={setSelectedId}
           />
@@ -237,6 +250,7 @@ export default function App() {
           loc={loc}
           user={user}
           restaurant={editor.restaurant || null}
+          initialChoice={editor.choice || null}
           visit={editor.visit || null}
           onClose={() => setEditor(null)}
           onSaved={async (restaurantId) => {

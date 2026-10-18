@@ -5,6 +5,7 @@ import { MealTags, MealFilter } from './Meals';
 import Meta from './Meta';
 import Score from './Score';
 import Thumb from './Thumb';
+import NearbyView from './NearbyView';
 
 const BEEN_SORTS = [
   { key: 'overall', label: 'Overall rating' },
@@ -35,7 +36,9 @@ function sortValue(row, key) {
 
 const EMPTY_FILTERS = { q: '', cuisine: '', area: '', price: '', tier: '', meal: '' };
 
-export default function ListView({ rows, loc, loading, user, section, onSection: setSection, onSwitchUser, onLocate, onSelect }) {
+export default function ListView({
+  rows, loc, loading, user, section, onSection: setSection, onSwitchUser, onLocate, onSelect, onQuickTry, onLogNew,
+}) {
   const [sorts, setSorts] = useState(() =>
     store.get('rr_sorts', { been: { key: 'overall', dir: 'desc' }, try: { key: 'added', dir: 'desc' } })
   );
@@ -48,7 +51,7 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
   const been = useMemo(() => rows.filter((r) => r.been), [rows]);
   const toTry = useMemo(() => rows.filter((r) => !r.been), [rows]);
   const base = section === 'been' ? been : toTry;
-  const sort = sorts[section];
+  const sort = sorts[section] || sorts.been;
   const sortOptions = section === 'been' ? BEEN_SORTS : TRY_SORTS;
 
   const cuisines = useMemo(() => [...new Set(base.map((r) => r.cuisine).filter(Boolean))].sort(), [base]);
@@ -120,12 +123,25 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
           <span className="box-label">To try</span>
           <span className="box-value">{toTry.length}</span>
         </button>
+        <button
+          role="tab"
+          aria-selected={section === 'near'}
+          className={`box ${section === 'near' ? 'on' : ''}`}
+          onClick={() => setSection('near')}
+        >
+          <span className="box-label">Nearby</span>
+          <span className="box-value near-pin">⌖</span>
+        </button>
         <button className="box server" onClick={onSwitchUser} title="Switch who's rating on this phone">
           <span className="box-label">Server</span>
           <span className="box-value">{userLabel}</span>
         </button>
       </div>
 
+      {section === 'near' ? (
+        <NearbyView rows={rows} loc={loc} onLocate={onLocate} onSelect={onSelect} onQuickTry={onQuickTry} onLogNew={onLogNew} />
+      ) : (
+      <>
       <div className="list-controls">
         <input
           className="lined-input"
@@ -264,6 +280,8 @@ export default function ListView({ rows, loc, loading, user, section, onSection:
         </p>
       )}
       {!loading && base.length > 0 && list.length === 0 && <p className="empty">No matches for those filters.</p>}
+      </>
+      )}
     </div>
   );
 }

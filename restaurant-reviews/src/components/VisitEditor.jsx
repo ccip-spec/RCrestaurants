@@ -16,10 +16,10 @@ function newId() {
 
 const blankItem = () => ({ name: '', ...Object.fromEntries(PEOPLE.map((p) => [p.key, ''])) });
 
-export default function VisitEditor({ rows, loc, user, restaurant, visit, onClose, onSaved }) {
+export default function VisitEditor({ rows, loc, user, restaurant, initialChoice, visit, onClose, onSaved }) {
   const editing = Boolean(visit);
   const locked = Boolean(restaurant);
-  const [choice, setChoice] = useState(restaurant ? { type: 'existing', row: restaurant } : null);
+  const [choice, setChoice] = useState(restaurant ? { type: 'existing', row: restaurant } : initialChoice || null);
 
   const [form, setForm] = useState(() => ({
     visit_date: visit ? visit.visit_date || '' : todayISO(),
