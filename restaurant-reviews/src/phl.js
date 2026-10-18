@@ -101,12 +101,13 @@ export async function searchPhilly(q, loc, signal, limit = 10) {
 }
 
 // Food places within `meters` of a point, nearest first.
-export async function nearbyPhilly(loc, meters = 800, limit = 60) {
+export async function nearbyPhilly(loc, meters = 800, limit = 60, sitDownOnly = false) {
   const c = loc || HOME_CENTER;
+  const types = sitDownOnly ? "('Food Preparing and Serving (30+ SEATS)')" : FOOD_LICENSES;
   const rows = await sql(
     `SELECT ${COLS}, ST_Distance(the_geom::geography, ${point(c)}::geography) meters
      FROM business_licenses
-     WHERE licensestatus = 'Active' AND licensetype IN ${FOOD_LICENSES} AND the_geom IS NOT NULL
+     WHERE licensestatus = 'Active' AND licensetype IN ${types} AND the_geom IS NOT NULL
        AND ST_DWithin(the_geom::geography, ${point(c)}::geography, ${Number(meters)})
      ORDER BY meters
      LIMIT ${limit * 2}`
@@ -125,3 +126,7 @@ export function samePlace(a, b) {
     .split(' ')
     .some((w) => wa.has(w));
 }
+
+// Big chains and non-restaurants that crowd the nearby list.
+const CHAINS = /\b(starbucks|dunkin|mcdonald|subway|wawa|7[- ]?eleven|chipotle|wendy|burger king|popeyes|kfc|taco bell|domino|papa john|pizza hut|sweetgreen|panera|chick[- ]?fil|dollar|cvs|rite aid|walgreens|aramark|sodexo|school|hospital|university|cafeteria|church|shoprite|acme|giant|whole foods|trader joe|target|walmart|gas|sunoco|exxon)\b/i;
+export const isChain = (name) => CHAINS.test(name);

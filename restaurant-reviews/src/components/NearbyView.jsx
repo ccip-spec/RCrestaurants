@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HOME_CENTER } from '../config';
-import { nearbyPhilly, samePlace } from '../phl';
+import { nearbyPhilly, samePlace, isChain } from '../phl';
 import { nearbyOsm } from '../photon';
 import { fmtMiles, haversineMiles } from '../utils';
 import Score from './Score';
@@ -14,6 +14,7 @@ const RADII = [
 
 export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, onLogNew }) {
   const [radius, setRadius] = useState(800);
+  const [sitDown, setSitDown] = useState(false);
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -27,7 +28,7 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
       setError(null);
       let list = [];
       try {
-        list = await nearbyPhilly(center, radius, 60);
+        list = (await nearbyPhilly(center, radius, 80, sitDown)).filter((p) => !isChain(p.name));
       } catch {
         /* outside the city or the city service is down — try OpenStreetMap */
       }
@@ -47,7 +48,7 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
     return () => {
       cancelled = true;
     };
-  }, [center.lat, center.lng, radius]);
+  }, [center.lat, center.lng, radius, sitDown]);
 
   const miles = (p) => haversineMiles(center.lat, center.lng, p.lat, p.lng);
   const radiusMi = radius / 1609.34;
@@ -89,6 +90,9 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
             Within {r.label}
           </button>
         ))}
+        <button className={sitDown ? 'on' : ''} onClick={() => setSitDown((v) => !v)}>
+          Sit-down
+        </button>
       </div>
 
       {tryNear.length > 0 && (
@@ -170,7 +174,10 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
         })}
       </ol>
       {fresh.length > 0 && (
-        <p className="muted small source-note">Nearby places come from the City of Philadelphia's food license list.</p>
+        <p className="muted small source-note">
+          Nearby places come from the City of Philadelphia's food license list, with big chains hidden. Sit-down means
+          licensed for 30+ seats.
+        </p>
       )}
     </div>
   );
