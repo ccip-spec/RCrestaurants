@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { PEOPLE, HOME_CENTER, LOCAL_RADIUS_MILES } from '../config';
+import { HOME_CENTER, LOCAL_RADIUS_MILES } from '../config';
+import { usePeople, ratersIn } from '../people';
 import { fmtScore, haversineMiles, priceLabel, store, tierOf } from '../utils';
 import { MealFilter } from './Meals';
 
@@ -24,16 +25,16 @@ function el(tag, className, text) {
   return e;
 }
 
-function popupContent(r, onOpen) {
+function popupContent(r, members, onOpen) {
   const box = el('div', 'popup');
   box.append(el('div', 'popup-name', r.name));
   const meta = [r.cuisine, r.neighborhood || r.city, priceLabel(r.price)].filter(Boolean);
   if (meta.length) box.append(el('div', 'popup-meta', meta.join('  /  ')));
   if (r.been) {
     const scores = el('div', 'popup-scores');
-    for (const p of PEOPLE) {
-      const s = el('span', null, `${p.label} `);
-      s.append(el('b', null, fmtScore(r.avg[p.key])));
+    for (const id of ratersIn(members, r.avg)) {
+      const s = el('span', null, `${members.find((m) => m.id === id)?.name || '?'} `);
+      s.append(el('b', null, fmtScore(r.avg[id])));
       scores.append(s);
     }
     const tier = tierOf(r.overall);
@@ -54,6 +55,7 @@ function popupContent(r, onOpen) {
 }
 
 export default function MapView({ rows, loc, active, loading, onLocate, onSelect }) {
+  const { members } = usePeople();
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -112,7 +114,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
         zIndexOffset: r.overall != null ? Math.round(r.overall * 100) : 0,
       });
       marker.bindPopup(() =>
-        popupContent(r, () => {
+        popupContent(r, members, () => {
           map.closePopup();
           selectRef.current(r.id);
         })
@@ -126,7 +128,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
       const near = all.filter(([la, ln]) => haversineMiles(c.lat, c.lng, la, ln) <= LOCAL_RADIUS_MILES);
       fitTo(map, near.length ? near : all);
     }
-  }, [rows, loc, show, meal]);
+  }, [rows, loc, show, meal, members]);
 
   // Your location dot.
   useEffect(() => {

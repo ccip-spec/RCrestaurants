@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PEOPLE } from '../config';
+import { usePeople, ratersIn } from '../people';
 import { fmtDate, fmtMiles, fmtScore, priceLabel, store, TIERS, MEALS } from '../utils';
 import { MealTags, MealFilter } from './Meals';
 import Meta from './Meta';
@@ -7,9 +7,9 @@ import Score from './Score';
 import Thumb from './Thumb';
 import NearbyView from './NearbyView';
 
-const BEEN_SORTS = [
+const beenSorts = (members) => [
   { key: 'overall', label: 'Overall rating' },
-  ...PEOPLE.map((p) => ({ key: `p:${p.key}`, label: `${p.label}'s rating` })),
+  ...members.map((m) => ({ key: `p:${m.id}`, label: `${m.name}'s rating` })),
   { key: 'distance', label: 'Distance' },
   { key: 'recent', label: 'Most recent visit' },
   { key: 'visits', label: 'Most visits' },
@@ -51,8 +51,11 @@ export default function ListView({
   const been = useMemo(() => rows.filter((r) => r.been), [rows]);
   const toTry = useMemo(() => rows.filter((r) => !r.been), [rows]);
   const base = section === 'been' ? been : toTry;
-  const sort = sorts[section] || sorts.been;
-  const sortOptions = section === 'been' ? BEEN_SORTS : TRY_SORTS;
+  const { members, me } = usePeople();
+  const sortOptions = section === 'been' ? beenSorts(members) : TRY_SORTS;
+  const saved = sorts[section] || sorts.been;
+  // A saved sort for someone no longer on the list falls back to overall.
+  const sort = sortOptions.some((o) => o.key === saved.key) ? saved : { key: sortOptions[0].key, dir: 'desc' };
 
   const cuisines = useMemo(() => [...new Set(base.map((r) => r.cuisine).filter(Boolean))].sort(), [base]);
   const areas = useMemo(() => [...new Set(base.map((r) => r.neighborhood || r.city).filter(Boolean))].sort(), [base]);
@@ -99,7 +102,7 @@ export default function ListView({
   const flipDir = () =>
     setSorts((s) => ({ ...s, [section]: { ...s[section], dir: s[section].dir === 'asc' ? 'desc' : 'asc' } }));
   const setF = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
-  const userLabel = PEOPLE.find((p) => p.key === user)?.label;
+  const userLabel = me?.name || '';
 
   return (
     <div className="list-view">
@@ -244,9 +247,9 @@ export default function ListView({
                 <MealTags meals={r.meals} />
                 {section === 'been' ? (
                   <span className="line-people">
-                    {PEOPLE.map((p) => (
-                      <span key={p.key}>
-                        {p.label} <b>{fmtScore(r.avg[p.key])}</b>
+                    {ratersIn(members, r.avg).map((id) => (
+                      <span key={id}>
+                        {members.find((m) => m.id === id)?.name || '?'} <b>{fmtScore(r.avg[id])}</b>
                       </span>
                     ))}
                     {r.visits.length > 1 && <span>{r.visits.length} visits</span>}

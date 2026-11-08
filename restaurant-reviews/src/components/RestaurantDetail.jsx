@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase, photoUrl, PHOTO_BUCKET } from '../supabase';
-import { PEOPLE } from '../config';
+import { usePeople, ratersIn, nameOf } from '../people';
 import { compressImage, fmtDate, fmtMiles, fmtMoney, fmtScore, mapsUrl, priceLabel, siteHost, visitAvg } from '../utils';
 import Sheet from './Sheet';
 import Meta from './Meta';
@@ -9,6 +9,7 @@ import Thumb, { picturePath } from './Thumb';
 import { MealTags, MealPicker } from './Meals';
 
 function VisitBlock({ visit, onEdit, onDelete }) {
+  const { members, byId } = usePeople();
   const items = visit.items || [];
   return (
     <section className="visit">
@@ -28,9 +29,9 @@ function VisitBlock({ visit, onEdit, onDelete }) {
       </div>
 
       <div className="visit-scores">
-        {PEOPLE.map((p) => (
-          <span key={p.key}>
-            {p.label} <b>{fmtScore(visit[`${p.key}_score`])}</b>
+        {ratersIn(members, visit.scores).map((id) => (
+          <span key={id}>
+            {nameOf(byId, id)} <b>{fmtScore(visit.scores[id])}</b>
           </span>
         ))}
         <span className="avg">
@@ -44,9 +45,9 @@ function VisitBlock({ visit, onEdit, onDelete }) {
             <div className="item" key={i}>
               <span className="item-name">{it.name}</span>
               <span className="dots" />
-              {PEOPLE.map((p) => (
-                <span className="item-score" key={p.key}>
-                  <small>{p.label}</small> {fmtScore(it[p.key])}
+              {ratersIn(members, it.scores).map((id) => (
+                <span className="item-score" key={id}>
+                  <small>{nameOf(byId, id)}</small> {fmtScore(it.scores[id])}
                 </span>
               ))}
             </div>
@@ -80,6 +81,7 @@ function VisitBlock({ visit, onEdit, onDelete }) {
 }
 
 export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit, onChanged, onDeleted, showToast }) {
+  const { members, byId } = usePeople();
   const [editing, setEditing] = useState(false);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -202,11 +204,11 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
 
       {row.been ? (
         <div className="tally">
-          {PEOPLE.map((p) => (
-            <div className="tally-line" key={p.key}>
-              <span>{p.label}</span>
+          {ratersIn(members, row.avg).map((id) => (
+            <div className="tally-line" key={id}>
+              <span>{nameOf(byId, id)}</span>
               <span className="dots" />
-              <b>{fmtScore(row.avg[p.key])}</b>
+              <b>{fmtScore(row.avg[id])}</b>
             </div>
           ))}
           <div className="tally-line">

@@ -1,31 +1,42 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, configured } from './supabase';
-import { PEOPLE, APP_NAME } from './config';
+import { APP_NAME } from './config';
 import { buildRows, getLocation, store } from './utils';
+import { PeopleContext, codeFromUrl, clearCodeFromUrl } from './people';
 import MapView from './components/MapView';
 import ListView from './components/ListView';
 import RestaurantDetail from './components/RestaurantDetail';
 import VisitEditor from './components/VisitEditor';
 import TryEditor from './components/TryEditor';
-import ImportView from './components/ImportView';
+import JoinScreen from './components/JoinScreen';
+import PeopleSheet from './components/PeopleSheet';
 import Sheet from './components/Sheet';
 import { ensureRestaurant } from './restaurants';
 
-function useHash() {
-  const [hash, setHash] = useState(() => window.location.hash);
-  useEffect(() => {
-    const on = () => setHash(window.location.hash);
-    window.addEventListener('hashchange', on);
-    return () => window.removeEventListener('hashchange', on);
-  }, []);
-  return hash;
+// Every phone gets an anonymous sign-in (no email). Returns this phone's person, or null if not joined yet.
+async function signInAndWho() {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) {
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) throw error;
+  }
+  let res = await supabase.rpc('whoami');
+  if (res.error) {
+    // Stale sign-in on this phone: start a fresh one.
+    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) throw error;
+    res = await supabase.rpc('whoami');
+    if (res.error) throw res.error;
+  }
+  return res.data?.[0] || null;
 }
 
 export default function App() {
-  const [user, setUser] = useState(() => {
-    const u = store.get('rr_user');
-    return PEOPLE.some((p) => p.key === u) ? u : null;
-  });
+  const [status, setStatus] = useState('starting'); // starting | join | ready | error
+  const [bootError, setBootError] = useState(null);
+  const [meId, setMeId] = useState(null);
+  const [members, setMembers] = useState([]);
   const [tab, setTab] = useState('list'); // always opens on the list
   const [section, setSection] = useState(() => store.get('rr_section', 'been'));
   const [restaurants, setRestaurants] = useState([]);
@@ -35,9 +46,10 @@ export default function App() {
   const [loc, setLoc] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [editor, setEditor] = useState(null); // { kind: 'visit'|'try'|'choose', restaurant?, visit? }
+  const [showPeople, setShowPeople] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
-  const hash = useHash();
+  const [joinCode] = useState(codeFromUrl);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -45,16 +57,38 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const load = useCallback(async () => {
+  const boot = useCallback(async () => {
     if (!configured) return;
-    const [r, v] = await Promise.all([
+    try {
+      const who = await signInAndWho();
+      if (!who) {
+        setStatus('join');
+        return;
+      }
+      setMeId(who.id);
+      clearCodeFromUrl();
+      setStatus('ready');
+    } catch (e) {
+      setBootError(e.message || String(e));
+      setStatus('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    boot();
+  }, [boot]);
+
+  const load = useCallback(async () => {
+    const [m, r, v] = await Promise.all([
+      supabase.from('members').select('id, name, legacy_key, created_at').order('created_at').order('name'),
       supabase.from('restaurants').select('*'),
       supabase.from('visits').select('*'),
     ]);
-    const err = r.error || v.error;
+    const err = m.error || r.error || v.error;
     if (err) {
       setLoadError(err.message);
     } else {
+      setMembers(m.data);
       setRestaurants(r.data);
       setVisits(v.data);
       setLoadError(null);
@@ -63,11 +97,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (status !== 'ready') return;
     load();
     const onVisible = () => document.visibilityState === 'visible' && load();
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [load]);
+  }, [status, load]);
 
   const locate = useCallback(
     async (quiet = false) => {
@@ -83,21 +118,19 @@ export default function App() {
   );
 
   useEffect(() => {
-    locate(true);
-  }, [locate]);
+    if (status === 'ready') locate(true);
+  }, [status, locate]);
 
   useEffect(() => store.set('rr_section', section), [section]);
 
   const rows = useMemo(() => buildRows(restaurants, visits, loc), [restaurants, visits, loc]);
   const selected = rows.find((r) => r.id === selectedId) || null;
 
-  const pickUser = (key) => {
-    store.set('rr_user', key);
-    setUser(key);
-  };
-  const switchUser = () => {
-    if (confirm('Switch who is rating on this phone?')) pickUser(null);
-  };
+  const people = useMemo(() => {
+    const byId = Object.fromEntries(members.map((m) => [m.id, m]));
+    return { members, byId, me: byId[meId] || (meId ? { id: meId, name: '' } : null) };
+  }, [members, meId]);
+  const user = meId;
 
   if (!configured) {
     return (
@@ -111,42 +144,34 @@ export default function App() {
     );
   }
 
-  if (!user) {
+  if (status === 'starting') {
     return (
       <div className="center-screen">
         <h1 className="wordmark">{APP_NAME}</h1>
-        <p className="muted">Who's rating on this phone?</p>
-        <div className="user-pick">
-          {PEOPLE.map((p) => (
-            <button key={p.key} className="pick-btn" onClick={() => pickUser(p.key)}>
-              {p.label}
-            </button>
-          ))}
-        </div>
       </div>
     );
   }
 
-  if (hash === '#import') {
+  if (status === 'error') {
     return (
-      <div className="app">
-        <header className="topbar">
-          <a className="wordmark" href="#">
-            {APP_NAME}
-          </a>
-        </header>
-        <main className="main">
-          <div className="pane scroll">
-            <ImportView rows={rows} user={user} onDone={load} />
-          </div>
-        </main>
+      <div className="center-screen">
+        <h1 className="wordmark">{APP_NAME}</h1>
+        <p>Couldn't sign in: {bootError}</p>
+        <button className="btn primary" onClick={() => window.location.reload()}>
+          Try again
+        </button>
       </div>
     );
+  }
+
+  if (status === 'join') {
+    return <JoinScreen initialCode={joinCode} onJoined={boot} />;
   }
 
   const beenCount = rows.filter((r) => r.been).length;
 
   return (
+    <PeopleContext.Provider value={people}>
     <div className="app">
       <header className="topbar">
         <h1 className="wordmark">{APP_NAME}</h1>
@@ -172,7 +197,7 @@ export default function App() {
             user={user}
             section={section}
             onSection={setSection}
-            onSwitchUser={switchUser}
+            onSwitchUser={() => setShowPeople(true)}
             onQuickTry={async (place) => {
               try {
                 await ensureRestaurant({ type: 'new', place }, { loc, user, fields: { want_to_try: true } });
@@ -278,7 +303,21 @@ export default function App() {
         />
       )}
 
+      {showPeople && (
+        <PeopleSheet
+          onClose={() => setShowPeople(false)}
+          onChanged={load}
+          onSwitched={(m) => {
+            setMeId(m.id);
+            setShowPeople(false);
+            showToast(`Now rating as ${m.name}`);
+          }}
+          showToast={showToast}
+        />
+      )}
+
       {toast && <div className="toast">{toast}</div>}
     </div>
+    </PeopleContext.Provider>
   );
 }

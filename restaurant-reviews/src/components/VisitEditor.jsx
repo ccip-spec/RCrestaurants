@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, photoUrl, PHOTO_BUCKET } from '../supabase';
-import { PEOPLE } from '../config';
+import { usePeople, ratersIn } from '../people';
 import { ensureRestaurant } from '../restaurants';
 import { compressImage, parseScore, priceLabel, todayISO, MEALS } from '../utils';
 import PlacePicker, { ChosenPlace } from './PlacePicker';
 import Sheet from './Sheet';
-
 
 function newId() {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -14,19 +13,40 @@ function newId() {
   );
 }
 
-const blankItem = () => ({ name: '', ...Object.fromEntries(PEOPLE.map((p) => [p.key, ''])) });
+const toText = (scores) =>
+  Object.fromEntries(Object.entries(scores || {}).map(([id, v]) => [id, v != null ? String(v) : '']));
+
+// Who usually eats with me: the people on my most recent visit.
+function usualCompany(rows, meId) {
+  let latest = null;
+  for (const r of rows) {
+    for (const v of r.visits) {
+      if (v.scores?.[meId] == null) continue;
+      if (!latest || v.created_at > latest.created_at) latest = v;
+    }
+  }
+  return latest ? Object.keys(latest.scores) : [meId];
+}
 
 export default function VisitEditor({ rows, loc, user, restaurant, initialChoice, visit, onClose, onSaved }) {
+  const { members, byId } = usePeople();
   const editing = Boolean(visit);
   const locked = Boolean(restaurant);
   const [choice, setChoice] = useState(restaurant ? { type: 'existing', row: restaurant } : initialChoice || null);
 
+  // Who was there (member ids). Only these people get score boxes.
+  const [present, setPresent] = useState(() => {
+    const ids = editing ? ratersIn(members, visit.scores) : usualCompany(rows, user);
+    if (!editing && !ids.includes(user)) ids.unshift(user);
+    return ids.filter((id) => byId[id] || visit?.scores?.[id] != null);
+  });
+  const ordered = members.map((m) => m.id).filter((id) => present.includes(id));
+  for (const id of present) if (!ordered.includes(id)) ordered.push(id);
+
   const [form, setForm] = useState(() => ({
     visit_date: visit ? visit.visit_date || '' : todayISO(),
     meal: visit?.meal || null,
-    scores: Object.fromEntries(
-      PEOPLE.map((p) => [p.key, visit?.[`${p.key}_score`] != null ? String(visit[`${p.key}_score`]) : ''])
-    ),
+    scores: toText(visit?.scores),
     cost: visit?.cost != null ? String(visit.cost) : '',
     would_return: visit?.would_return ?? null,
     notes: visit?.notes || '',
@@ -34,10 +54,7 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
     price: '',
   }));
   const [items, setItems] = useState(() =>
-    (visit?.items || []).map((it) => ({
-      name: it.name || '',
-      ...Object.fromEntries(PEOPLE.map((p) => [p.key, it[p.key] != null ? String(it[p.key]) : ''])),
-    }))
+    (visit?.items || []).map((it) => ({ name: it.name || '', scores: toText(it.scores) }))
   );
   const [keptPhotos, setKeptPhotos] = useState(visit?.photos || []);
   const [newFiles, setNewFiles] = useState([]);
@@ -45,8 +62,13 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
   const [error, setError] = useState(null);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const setScore = (k, v) => setForm((f) => ({ ...f, scores: { ...f.scores, [k]: v } }));
-  const setItem = (i, k, v) => setItems((list) => list.map((it, j) => (j === i ? { ...it, [k]: v } : it)));
+  const setScore = (id, v) => setForm((f) => ({ ...f, scores: { ...f.scores, [id]: v } }));
+  const setItemName = (i, v) => setItems((list) => list.map((it, j) => (j === i ? { ...it, name: v } : it)));
+  const setItemScore = (i, id, v) =>
+    setItems((list) => list.map((it, j) => (j === i ? { ...it, scores: { ...it.scores, [id]: v } } : it)));
+  const togglePresent = (id) =>
+    setPresent((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
+  const nameFor = (id) => byId[id]?.name || '?';
 
   const previews = useMemo(() => newFiles.map((f) => URL.createObjectURL(f)), [newFiles]);
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
@@ -56,21 +78,21 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
   async function save() {
     setError(null);
     const scores = {};
-    for (const p of PEOPLE) {
-      const r = parseScore(form.scores[p.key], `${p.label}'s score`);
+    for (const id of ordered) {
+      const r = parseScore(form.scores[id], `${nameFor(id)}'s score`);
       if (r.error) return setError(r.error);
-      scores[`${p.key}_score`] = r.value;
+      if (r.value != null) scores[id] = r.value;
     }
-    if (PEOPLE.every((p) => scores[`${p.key}_score`] == null)) return setError('Enter at least one score.');
+    if (!Object.keys(scores).length) return setError('Enter at least one score.');
 
     const cleanItems = [];
     for (const it of items) {
       if (!it.name.trim()) continue;
-      const out = { name: it.name.trim() };
-      for (const p of PEOPLE) {
-        const r = parseScore(it[p.key], `${p.label}'s score for ${it.name.trim()}`);
+      const out = { name: it.name.trim(), scores: {} };
+      for (const id of ordered) {
+        const r = parseScore(it.scores[id], `${nameFor(id)}'s score for ${it.name.trim()}`);
         if (r.error) return setError(r.error);
-        out[p.key] = r.value;
+        if (r.value != null) out.scores[id] = r.value;
       }
       cleanItems.push(out);
     }
@@ -105,7 +127,7 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
         restaurant_id: restaurantId,
         visit_date: form.visit_date || null,
         meal: form.meal,
-        ...scores,
+        scores,
         items: cleanItems,
         cost,
         would_return: form.would_return,
@@ -127,6 +149,8 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
       setSaving(false);
     }
   }
+
+  const itemCols = { gridTemplateColumns: `1fr repeat(${Math.max(ordered.length, 1)}, 54px) 32px` };
 
   return (
     <Sheet
@@ -150,21 +174,40 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
         <div className="form">
           <ChosenPlace choice={choice} onChange={locked ? null : () => setChoice(null)} />
 
-          <div className="score-inputs">
-            {PEOPLE.map((p) => (
-              <label key={p.key} className={p.key === user ? 'mine' : ''}>
-                {p.label}
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0–10"
-                  value={form.scores[p.key]}
-                  onChange={(e) => setScore(p.key, e.target.value)}
-                />
-              </label>
-            ))}
+          <div className="field">
+            <span>Who was there</span>
+            <div className="who-chips">
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={present.includes(m.id) ? 'on' : ''}
+                  onClick={() => togglePresent(m.id)}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="muted small">Leave a score blank if that person wasn't there.</div>
+
+          {ordered.length > 0 ? (
+            <div className={`score-inputs ${ordered.length === 1 ? 'one' : ''}`}>
+              {ordered.map((id) => (
+                <label key={id} className={id === user ? 'mine' : ''}>
+                  {nameFor(id)}
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0–10"
+                    value={form.scores[id] || ''}
+                    onChange={(e) => setScore(id, e.target.value)}
+                  />
+                </label>
+              ))}
+            </div>
+          ) : (
+            <div className="muted small">Tap who was there to add their scores.</div>
+          )}
 
           <div className="row gap wrap">
             <label className="grow">
@@ -213,30 +256,32 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
             <span>What you ordered</span>
             {items.length > 0 && (
               <div className="items-edit">
-                <div className="items-head">
+                <div className="items-head" style={itemCols}>
                   <span>Dish</span>
-                  {PEOPLE.map((p) => (
-                    <span key={p.key}>{p.label}</span>
+                  {ordered.map((id) => (
+                    <span key={id} className="clip">
+                      {nameFor(id)}
+                    </span>
                   ))}
                   <span />
                 </div>
                 {items.map((it, i) => (
-                  <div className="item-row" key={i}>
+                  <div className="item-row" key={i} style={itemCols}>
                     <input
                       value={it.name}
                       placeholder="Dish"
                       aria-label="Dish name"
-                      onChange={(e) => setItem(i, 'name', e.target.value)}
+                      onChange={(e) => setItemName(i, e.target.value)}
                     />
-                    {PEOPLE.map((p) => (
+                    {ordered.map((id) => (
                       <input
-                        key={p.key}
+                        key={id}
                         className="item-score"
                         inputMode="decimal"
                         placeholder="–"
-                        aria-label={`${p.label}'s score`}
-                        value={it[p.key]}
-                        onChange={(e) => setItem(i, p.key, e.target.value)}
+                        aria-label={`${nameFor(id)}'s score`}
+                        value={it.scores[id] || ''}
+                        onChange={(e) => setItemScore(i, id, e.target.value)}
                       />
                     ))}
                     <button
@@ -250,7 +295,7 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
                 ))}
               </div>
             )}
-            <button className="btn link" onClick={() => setItems((list) => [...list, blankItem()])}>
+            <button className="btn link" onClick={() => setItems((list) => [...list, { name: '', scores: {} }])}>
               Add a dish
             </button>
           </div>

@@ -1,9 +1,3 @@
-// Edit names here. `key` must match the database columns (c_score, r_score) — don't change keys.
-export const PEOPLE = [
-  { key: 'c', label: 'C' },
-  { key: 'r', label: 'R' },
-];
-
 export const APP_NAME = 'Our Eats';
 
 // Default map center / search bias when location is unavailable (Philadelphia City Hall).

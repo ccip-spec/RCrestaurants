@@ -1,4 +1,3 @@
-import { PEOPLE } from './config';
 
 // ---------- numbers & formatting ----------
 export function mean(values) {
@@ -108,8 +107,9 @@ export function getLocation() {
 }
 
 // ---------- derived rows ----------
+// visit.scores = { "<member id>": 8.5, ... }
 export function visitAvg(v) {
-  return mean(PEOPLE.map((p) => v[`${p.key}_score`]));
+  return mean(Object.values(v.scores || {}));
 }
 
 function byVisitOrder(a, b) {
@@ -127,10 +127,14 @@ export function buildRows(restaurants, visits, loc) {
   }
   return restaurants.map((r) => {
     const vs = (byRestaurant[r.id] || []).slice().sort(byVisitOrder);
-    const avg = {};
-    for (const p of PEOPLE) avg[p.key] = mean(vs.map((v) => v[`${p.key}_score`]));
+    // Each person's average across their visits here.
+    const byPerson = {};
+    for (const v of vs) {
+      for (const [id, s] of Object.entries(v.scores || {})) (byPerson[id] ||= []).push(s);
+    }
+    const avg = Object.fromEntries(Object.entries(byPerson).map(([id, list]) => [id, mean(list)]));
     // Overall = average of every individual score across all visits.
-    const overall = mean(vs.flatMap((v) => PEOPLE.map((p) => v[`${p.key}_score`])));
+    const overall = mean(vs.flatMap((v) => Object.values(v.scores || {})));
     const distance =
       loc && r.lat != null && r.lng != null ? haversineMiles(loc.lat, loc.lng, r.lat, r.lng) : null;
     return {
