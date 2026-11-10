@@ -23,7 +23,7 @@ export default function SettingsSheet({ onClose, onChanged, onLogout, showToast 
   const share = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Our Eats', text: 'Join our restaurant list', url: link });
+        await navigator.share({ title: 'RC Eats', text: 'Join our restaurant list', url: link });
         return;
       }
     } catch (e) {

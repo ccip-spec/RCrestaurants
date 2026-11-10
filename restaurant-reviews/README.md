@@ -1,4 +1,4 @@
-# Our Eats — shared restaurant reviews
+# RC Eats — shared restaurant reviews
 
 React + Vite site with a map and a sortable list, for two people rating restaurants 0–10.
 Free stack: Supabase (database and photos), OpenStreetMap (map tiles), Photon (restaurant search), Vercel (hosting).
