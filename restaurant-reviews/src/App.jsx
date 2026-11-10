@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, configured } from './supabase';
 import { APP_NAME } from './config';
 import { buildRows, getLocation, store } from './utils';
-import { PeopleContext, codeFromUrl, clearCodeFromUrl } from './people';
+import { PeopleContext, codeFromUrl, rememberedCode, rememberCode, putCodeInUrl } from './people';
 import MapView from './components/MapView';
 import ListView from './components/ListView';
 import RestaurantDetail from './components/RestaurantDetail';
 import VisitEditor from './components/VisitEditor';
 import TryEditor from './components/TryEditor';
 import JoinScreen from './components/JoinScreen';
-import PeopleSheet from './components/PeopleSheet';
+import SettingsSheet from './components/SettingsSheet';
 import Sheet from './components/Sheet';
 import { ensureRestaurant } from './restaurants';
 
@@ -46,10 +46,10 @@ export default function App() {
   const [loc, setLoc] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [editor, setEditor] = useState(null); // { kind: 'visit'|'try'|'choose', restaurant?, visit? }
-  const [showPeople, setShowPeople] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
-  const [joinCode] = useState(codeFromUrl);
+  const [joinCode] = useState(() => codeFromUrl() || rememberedCode());
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -66,8 +66,14 @@ export default function App() {
         return;
       }
       setMeId(who.id);
-      clearCodeFromUrl();
       setStatus('ready');
+      // Remember the invite so a home-screen icon added from here opens straight in.
+      supabase.rpc('get_invite_code').then(({ data }) => {
+        if (data) {
+          rememberCode(data);
+          putCodeInUrl(data);
+        }
+      });
     } catch (e) {
       setBootError(e.message || String(e));
       setStatus('error');
@@ -80,7 +86,7 @@ export default function App() {
 
   const load = useCallback(async () => {
     const [m, r, v] = await Promise.all([
-      supabase.from('members').select('id, name, legacy_key, created_at').order('created_at').order('name'),
+      supabase.from('members').select('id, name, avatar, legacy_key, created_at').order('created_at').order('name'),
       supabase.from('restaurants').select('*'),
       supabase.from('visits').select('*'),
     ]);
@@ -165,7 +171,7 @@ export default function App() {
   }
 
   if (status === 'join') {
-    return <JoinScreen initialCode={joinCode} onJoined={boot} />;
+    return <JoinScreen code={joinCode} onJoined={boot} />;
   }
 
   const beenCount = rows.filter((r) => r.been).length;
@@ -197,7 +203,7 @@ export default function App() {
             user={user}
             section={section}
             onSection={setSection}
-            onSwitchUser={() => setShowPeople(true)}
+            onSettings={() => setShowSettings(true)}
             onQuickTry={async (place) => {
               try {
                 await ensureRestaurant({ type: 'new', place }, { loc, user, fields: { want_to_try: true } });
@@ -303,14 +309,17 @@ export default function App() {
         />
       )}
 
-      {showPeople && (
-        <PeopleSheet
-          onClose={() => setShowPeople(false)}
+      {showSettings && (
+        <SettingsSheet
+          onClose={() => setShowSettings(false)}
           onChanged={load}
-          onSwitched={(m) => {
-            setMeId(m.id);
-            setShowPeople(false);
-            showToast(`Now rating as ${m.name}`);
+          onLogout={() => {
+            setShowSettings(false);
+            setMeId(null);
+            setSelectedId(null);
+            setEditor(null);
+            setStatus('starting');
+            boot();
           }}
           showToast={showToast}
         />

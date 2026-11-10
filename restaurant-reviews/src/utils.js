@@ -141,6 +141,7 @@ export function buildRows(restaurants, visits, loc) {
       ...r,
       visits: vs,
       been: vs.length > 0,
+      tryBy: r.try_by || [],
       avg,
       overall,
       lastVisit: vs.find((v) => v.visit_date)?.visit_date || null,

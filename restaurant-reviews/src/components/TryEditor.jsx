@@ -14,7 +14,8 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const alreadyBeen = choice?.type === 'existing' && choice.row.been;
+  // Already been = this person has a score there. Others having been doesn't matter.
+  const alreadyBeen = choice?.type === 'existing' && choice.row.avg[user] != null;
 
   async function save() {
     setError(null);
@@ -27,6 +28,7 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
           .from('restaurants')
           .update({
             want_to_try: true,
+            try_by: [...new Set([...(choice.row.try_by || []), user])],
             recommended_by: recommendedBy.trim() || choice.row.recommended_by || null,
             try_notes: notes.trim() || choice.row.try_notes || null,
             meal_tags: [...new Set([...(choice.row.meal_tags || []), ...meals])],
@@ -70,7 +72,7 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
           <ChosenPlace choice={choice} onChange={() => setChoice(null)} />
           {alreadyBeen ? (
             <p className="muted">
-              You've already been here. It's rated {fmtScore(choice.row.overall)} on your list.
+              You've already been here. You rated it {fmtScore(choice.row.avg[user])}.
             </p>
           ) : (
             <>

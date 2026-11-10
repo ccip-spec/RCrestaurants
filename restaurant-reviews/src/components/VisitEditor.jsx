@@ -5,6 +5,7 @@ import { ensureRestaurant } from '../restaurants';
 import { compressImage, parseScore, priceLabel, todayISO, MEALS } from '../utils';
 import PlacePicker, { ChosenPlace } from './PlacePicker';
 import Sheet from './Sheet';
+import Avatar from './Avatar';
 
 function newId() {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -184,6 +185,7 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
                   className={present.includes(m.id) ? 'on' : ''}
                   onClick={() => togglePresent(m.id)}
                 >
+                  <Avatar member={m} size="xs" />
                   {m.name}
                 </button>
               ))}

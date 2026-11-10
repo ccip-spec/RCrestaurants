@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { HOME_CENTER, LOCAL_RADIUS_MILES } from '../config';
-import { usePeople, ratersIn } from '../people';
+import { usePeople, ratersIn, isTry } from '../people';
 import { fmtScore, haversineMiles, priceLabel, store, tierOf } from '../utils';
 import { MealFilter } from './Meals';
 
@@ -25,7 +25,9 @@ function el(tag, className, text) {
   return e;
 }
 
-function popupContent(r, members, onOpen) {
+function popupContent(r, members, meId, onOpen) {
+  const mine = isTry(r, meId);
+  const nm = (id) => (id === meId ? 'you' : members.find((m) => m.id === id)?.name || '?');
   const box = el('div', 'popup');
   box.append(el('div', 'popup-name', r.name));
   const meta = [r.cuisine, r.neighborhood || r.city, priceLabel(r.price)].filter(Boolean);
@@ -43,10 +45,11 @@ function popupContent(r, members, onOpen) {
     scores.append(total);
     box.append(scores);
     if (tier) box.append(el('div', 'popup-tier', tier.label));
-  } else if (r.recommended_by) {
-    box.append(el('div', 'popup-meta', `To try, from ${r.recommended_by}`));
-  } else {
-    box.append(el('div', 'popup-meta', 'On your try list'));
+  }
+  if (mine) {
+    const who = r.tryBy.length ? `, added by ${r.tryBy.map(nm).join(', ')}` : '';
+    const from = r.recommended_by ? `, from ${r.recommended_by}` : '';
+    box.append(el('div', 'popup-meta', `On your try list${who}${from}`));
   }
   const btn = el('button', 'popup-btn', r.been ? 'Open check' : 'Open');
   btn.onclick = onOpen;
@@ -55,7 +58,8 @@ function popupContent(r, members, onOpen) {
 }
 
 export default function MapView({ rows, loc, active, loading, onLocate, onSelect }) {
-  const { members } = usePeople();
+  const { members, me } = usePeople();
+  const meId = me?.id;
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -95,15 +99,17 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
     const all = [];
     for (const r of rows) {
       if (r.lat == null || r.lng == null) continue;
-      if (r.been ? !show.been : !show.try) continue;
+      // Your try list wins: a place others rated but you haven't tried shows as "Try".
+      const tryForMe = isTry(r, meId);
+      if (tryForMe ? !show.try : !show.been) continue;
       if (meal && !r.meals.includes(meal)) continue;
       const tier = tierOf(r.overall);
-      const left = r.been
+      const left = !tryForMe
         ? `<span class="tag-score${tier ? ` t-${tier.key}` : ' none'}">${fmtScore(r.overall)}</span>`
         : `<span class="tag-score try">Try</span>`;
       const icon = L.divIcon({
         className: 'tag-icon',
-        html: `<div class="tag${r.been ? '' : ' is-try'}">${left}<span class="tag-name">${escapeHtml(r.name)}</span></div>`,
+        html: `<div class="tag${tryForMe ? ' is-try' : ''}">${left}<span class="tag-name">${escapeHtml(r.name)}</span></div>`,
         iconSize: [0, 0],
         iconAnchor: [0, 0],
         popupAnchor: [0, -40],
@@ -114,7 +120,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
         zIndexOffset: r.overall != null ? Math.round(r.overall * 100) : 0,
       });
       marker.bindPopup(() =>
-        popupContent(r, members, () => {
+        popupContent(r, members, meId, () => {
           map.closePopup();
           selectRef.current(r.id);
         })
@@ -128,7 +134,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
       const near = all.filter(([la, ln]) => haversineMiles(c.lat, c.lng, la, ln) <= LOCAL_RADIUS_MILES);
       fitTo(map, near.length ? near : all);
     }
-  }, [rows, loc, show, meal, members]);
+  }, [rows, loc, show, meal, members, meId]);
 
   // Your location dot.
   useEffect(() => {
@@ -160,7 +166,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
 
   const showAll = () => {
     const pts = rows
-      .filter((r) => r.lat != null && (r.been ? show.been : show.try) && (!meal || r.meals.includes(meal)))
+      .filter((r) => r.lat != null && (isTry(r, meId) ? show.try : show.been) && (!meal || r.meals.includes(meal)))
       .map((r) => [r.lat, r.lng]);
     fitTo(mapRef.current, pts);
   };

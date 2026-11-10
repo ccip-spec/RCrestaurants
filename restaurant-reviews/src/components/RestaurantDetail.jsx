@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase, photoUrl, PHOTO_BUCKET } from '../supabase';
-import { usePeople, ratersIn, nameOf } from '../people';
+import { usePeople, ratersIn, nameOf, isTry } from '../people';
 import { compressImage, fmtDate, fmtMiles, fmtMoney, fmtScore, mapsUrl, priceLabel, siteHost, visitAvg } from '../utils';
 import Sheet from './Sheet';
 import Meta from './Meta';
@@ -81,7 +81,11 @@ function VisitBlock({ visit, onEdit, onDelete }) {
 }
 
 export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit, onChanged, onDeleted, showToast }) {
-  const { members, byId } = usePeople();
+  const { members, byId, me } = usePeople();
+  const tryForMe = isTry(row, me?.id);
+  const iAdded = row.tryBy.includes(me?.id);
+  const iRated = row.avg[me?.id] != null;
+  const who = (id) => (id === me?.id ? 'you' : nameOf(byId, id));
   const [editing, setEditing] = useState(false);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -161,8 +165,8 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
 
   const deleteRestaurant = async () => {
     const msg = row.been
-      ? `Delete ${row.name} and its ${row.visits.length} visit(s)? This can't be undone.`
-      : `Remove ${row.name} from your try list?`;
+      ? `Delete ${row.name} and its ${row.visits.length} visit(s) for everyone? This can't be undone.`
+      : `Remove ${row.name}?`;
     if (!confirm(msg)) return;
     setBusy(true);
     const photos = row.visits.flatMap((v) => v.photos || []);
@@ -172,6 +176,21 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
     if (error) return showToast(error.message);
     if (photos.length) await supabase.storage.from(PHOTO_BUCKET).remove(photos);
     onDeleted(row.been ? 'Restaurant deleted' : 'Removed from try list');
+  };
+
+  // Take your name off the try list. If nobody else added it and nobody has been, the place goes away.
+  const removeFromTry = async () => {
+    const rest = row.tryBy.filter((id) => id !== me?.id);
+    if (!row.been && rest.length === 0) return deleteRestaurant();
+    setBusy(true);
+    const { error } = await supabase
+      .from('restaurants')
+      .update({ try_by: rest, want_to_try: rest.length > 0 })
+      .eq('id', row.id);
+    setBusy(false);
+    if (error) return showToast(error.message);
+    onChanged();
+    showToast('Removed from your try list');
   };
 
   const host = siteHost(row.website);
@@ -202,7 +221,24 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
         </div>
       </div>
 
-      {row.been ? (
+      {tryForMe && (
+        <div className="try-box">
+          <div className="try-stamp">To try</div>
+          {row.tryBy.length > 0 && (
+            <p>
+              Added by <b>{row.tryBy.map(who).join(', ')}</b>
+            </p>
+          )}
+          {row.recommended_by && (
+            <p>
+              Recommended by <b>{row.recommended_by}</b>
+            </p>
+          )}
+          {row.try_notes && <p className="visit-notes">{row.try_notes}</p>}
+        </div>
+      )}
+
+      {row.been && (
         <div className="tally">
           {ratersIn(members, row.avg).map((id) => (
             <div className="tally-line" key={id}>
@@ -221,20 +257,10 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
             <Score value={row.overall} size="lg" />
           </div>
         </div>
-      ) : (
-        <div className="try-box">
-          <div className="try-stamp">To try</div>
-          {row.recommended_by && (
-            <p>
-              Recommended by <b>{row.recommended_by}</b>
-            </p>
-          )}
-          {row.try_notes && <p className="visit-notes">{row.try_notes}</p>}
-        </div>
       )}
 
       <button className="btn primary block" onClick={() => onAddVisit(row)}>
-        {row.been ? 'Log another visit' : 'We went. Log a visit'}
+        {iRated ? 'Log another visit' : tryForMe ? 'We went. Log a visit' : 'Log a visit'}
       </button>
 
       {row.been && (
@@ -243,7 +269,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
           {row.visits.map((v) => (
             <VisitBlock key={v.id} visit={v} onEdit={() => onEditVisit(row, v)} onDelete={() => deleteVisit(v)} />
           ))}
-          {row.recommended_by && <p className="muted small">Recommended by {row.recommended_by}</p>}
+          {row.recommended_by && !tryForMe && <p className="muted small">Recommended by {row.recommended_by}</p>}
         </>
       )}
 
@@ -262,8 +288,8 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
                 Remove photo
               </button>
             )}
-            {!row.been && (
-              <button className="text-btn danger" onClick={deleteRestaurant} disabled={busy}>
+            {tryForMe && (iAdded || (!row.been && row.tryBy.length === 0)) && (
+              <button className="text-btn danger" onClick={removeFromTry} disabled={busy}>
                 Remove from try list
               </button>
             )}
@@ -312,7 +338,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
               Recommended by
               <input value={info.recommended_by} onChange={(e) => setInfo({ ...info, recommended_by: e.target.value })} />
             </label>
-            {!row.been && (
+            {(tryForMe || row.tryBy.length > 0) && (
               <label>
                 Notes
                 <textarea rows={3} value={info.try_notes} onChange={(e) => setInfo({ ...info, try_notes: e.target.value })} />
@@ -327,7 +353,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
               </button>
             </div>
             <button className="text-btn danger" onClick={deleteRestaurant} disabled={busy}>
-              {row.been ? 'Delete restaurant' : 'Remove from try list'}
+              Delete restaurant for everyone
             </button>
           </div>
         )}

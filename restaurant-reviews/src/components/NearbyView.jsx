@@ -5,6 +5,7 @@ import { nearbyOsm } from '../photon';
 import { fmtMiles, haversineMiles } from '../utils';
 import Score from './Score';
 import Thumb from './Thumb';
+import { usePeople, isTry, nameOf } from '../people';
 
 const RADII = [
   { m: 400, label: '¼ mi' },
@@ -13,6 +14,7 @@ const RADII = [
 ];
 
 export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, onLogNew }) {
+  const { me, byId } = usePeople();
   const [radius, setRadius] = useState(800);
   const [sitDown, setSitDown] = useState(false);
   const [places, setPlaces] = useState([]);
@@ -57,7 +59,7 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
 
   const { tryNear, favNear, fresh } = useMemo(() => {
     const withDist = rows.filter((r) => r.lat != null).map((r) => ({ r, d: miles(r) }));
-    const tryNear = withDist.filter(({ r, d }) => !r.been && d <= Math.max(radiusMi * 2, 1)).sort((a, b) => a.d - b.d);
+    const tryNear = withDist.filter(({ r, d }) => isTry(r, me?.id) && d <= Math.max(radiusMi * 2, 1)).sort((a, b) => a.d - b.d);
     const favNear = withDist
       .filter(({ r, d }) => r.been && r.overall != null && r.overall >= 7.3 && d <= Math.max(radiusMi * 2, 1))
       .sort((a, b) => b.r.overall - a.r.overall)
@@ -65,7 +67,7 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
     const fresh = places.filter((p) => !known(p)).map((p) => ({ p, d: miles(p) })).sort((a, b) => a.d - b.d);
     return { tryNear, favNear, fresh };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, places, center.lat, center.lng, radiusMi]);
+  }, [rows, places, center.lat, center.lng, radiusMi, me?.id]);
 
   const quickTry = async (p) => {
     setAdded((a) => ({ ...a, [p.osm_ref]: 'saving' }));
@@ -106,7 +108,12 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
                   <Thumb row={r} />
                   <span className="line-main">
                     <span className="line-name">{r.name}</span>
-                    <span className="line-people">{r.recommended_by ? `From ${r.recommended_by}` : 'Saved to try'}</span>
+                    <span className="line-people">
+                      {r.tryBy.length
+                        ? `Added by ${r.tryBy.map((id) => (id === me?.id ? 'you' : nameOf(byId, id))).join(', ')}`
+                        : 'Saved to try'}
+                      {r.recommended_by ? `, from ${r.recommended_by}` : ''}
+                    </span>
                   </span>
                   <span className="line-amount">
                     <span className="dist big">{fmtMiles(d)}</span>

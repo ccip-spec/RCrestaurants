@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { usePeople, ratersIn } from '../people';
+import { usePeople, ratersIn, isTry, nameOf } from '../people';
+import Avatar from './Avatar';
 import { fmtDate, fmtMiles, fmtScore, priceLabel, store, TIERS, MEALS } from '../utils';
 import { MealTags, MealFilter } from './Meals';
 import Meta from './Meta';
@@ -37,7 +38,7 @@ function sortValue(row, key) {
 const EMPTY_FILTERS = { q: '', cuisine: '', area: '', price: '', tier: '', meal: '' };
 
 export default function ListView({
-  rows, loc, loading, user, section, onSection: setSection, onSwitchUser, onLocate, onSelect, onQuickTry, onLogNew,
+  rows, loc, loading, user, section, onSection: setSection, onSettings, onLocate, onSelect, onQuickTry, onLogNew,
 }) {
   const [sorts, setSorts] = useState(() =>
     store.get('rr_sorts', { been: { key: 'overall', dir: 'desc' }, try: { key: 'added', dir: 'desc' } })
@@ -48,10 +49,11 @@ export default function ListView({
   useEffect(() => store.set('rr_sorts', sorts), [sorts]);
   useEffect(() => store.set('rr_filters2', filters), [filters]);
 
+  const { members, me, byId } = usePeople();
   const been = useMemo(() => rows.filter((r) => r.been), [rows]);
-  const toTry = useMemo(() => rows.filter((r) => !r.been), [rows]);
+  // Each person's own try list: stays until they log a visit there.
+  const toTry = useMemo(() => rows.filter((r) => isTry(r, me?.id)), [rows, me?.id]);
   const base = section === 'been' ? been : toTry;
-  const { members, me } = usePeople();
   const sortOptions = section === 'been' ? beenSorts(members) : TRY_SORTS;
   const saved = sorts[section] || sorts.been;
   // A saved sort for someone no longer on the list falls back to overall.
@@ -102,7 +104,6 @@ export default function ListView({
   const flipDir = () =>
     setSorts((s) => ({ ...s, [section]: { ...s[section], dir: s[section].dir === 'asc' ? 'desc' : 'asc' } }));
   const setF = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
-  const userLabel = me?.name || '';
 
   return (
     <div className="list-view">
@@ -135,9 +136,12 @@ export default function ListView({
           <span className="box-label">Nearby</span>
           <span className="box-value near-pin">⌖</span>
         </button>
-        <button className="box server" onClick={onSwitchUser} title="Switch who's rating on this phone">
+        <button className="box server" onClick={onSettings} title="Settings">
           <span className="box-label">Server</span>
-          <span className="box-value">{userLabel}</span>
+          <span className="server-me">
+            <Avatar member={me} />
+            <span className="box-value">{me?.name}</span>
+          </span>
         </button>
       </div>
 
@@ -257,7 +261,17 @@ export default function ListView({
                   </span>
                 ) : (
                   <span className="line-people">
+                    {r.tryBy.length > 0 && (
+                      <span className="added-by">
+                        Added by {r.tryBy.map((id) => (id === me?.id ? 'you' : nameOf(byId, id))).join(', ')}
+                      </span>
+                    )}
                     {r.recommended_by && <span>From {r.recommended_by}</span>}
+                    {ratersIn(members, r.avg).map((id) => (
+                      <span key={id}>
+                        {nameOf(byId, id)} went <b>{fmtScore(r.avg[id])}</b>
+                      </span>
+                    ))}
                     {r.try_notes && <span className="clip">{r.try_notes}</span>}
                   </span>
                 )}

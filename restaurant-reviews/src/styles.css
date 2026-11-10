@@ -918,3 +918,48 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 .people-list li { display: flex; align-items: center; justify-content: space-between; padding: 10px 2px; border-bottom: 1px solid var(--rule); }
 .person-name { font-family: var(--hand); font-weight: 700; font-size: 1.3rem; }
 .you { font-family: var(--printed); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--red); }
+
+/* ---------- avatars & settings ---------- */
+.avatar {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--paper-deep);
+  border: 1.5px solid var(--print);
+  color: var(--print);
+  font-family: var(--hand);
+  font-weight: 700;
+  line-height: 1;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar.xs { width: 20px; height: 20px; font-size: 0.7rem; border-width: 1px; }
+.avatar.sm { width: 26px; height: 26px; font-size: 0.8rem; }
+.avatar.md { width: 44px; height: 44px; font-size: 1.1rem; }
+.avatar.lg { width: 84px; height: 84px; font-size: 2rem; }
+.who-chips button { display: inline-flex; align-items: center; gap: 6px; padding-left: 6px; }
+.who-chips button.on .avatar { border-color: var(--paper); }
+.server-me { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.box.server .box-value { font-size: 1.25rem; }
+.name-btn { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.added-by { color: var(--red); }
+.profile { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 18px; }
+.profile-photo { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+.profile-photo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.profile-photo .text-btn { align-self: center; }
+.profile-name {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: var(--printed);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.8rem;
+  color: var(--print);
+}
+.profile-name input { font-family: var(--hand); font-size: 1.3rem; text-transform: none; letter-spacing: 0; color: var(--pen); }
+.person { display: flex; align-items: center; gap: 10px; }
+.invite-box { margin-bottom: 6px; }

@@ -50,6 +50,7 @@ export async function ensureRestaurant(choice, { loc, user, fields = {} }) {
     recommended_by: fields.recommended_by || null,
     try_notes: fields.try_notes || null,
     meal_tags: fields.meal_tags || [],
+    try_by: fields.want_to_try && user ? [user] : [],
     created_by: user,
   };
 
