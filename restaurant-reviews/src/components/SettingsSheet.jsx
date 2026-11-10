@@ -4,10 +4,11 @@ import { inviteLink, usePeople } from '../people';
 import { compressImage } from '../utils';
 import Avatar from './Avatar';
 import Sheet from './Sheet';
+import { isStandalone } from '../install';
 
 const friendly = (e) => (e?.message || String(e)).replace(/^.*?:\s*(?=[A-Z])/, '');
 
-export default function SettingsSheet({ onClose, onChanged, onLogout, showToast }) {
+export default function SettingsSheet({ onClose, onChanged, onInstall, onLogout, showToast }) {
   const { members, me } = usePeople();
   const [code, setCode] = useState(null);
   const [name, setName] = useState(me?.name || '');
@@ -128,7 +129,12 @@ export default function SettingsSheet({ onClose, onChanged, onLogout, showToast 
         ))}
       </ul>
 
-      <div className="detail-admin">
+      <div className="detail-admin row gap wrap">
+        {!isStandalone() && (
+          <button className="text-btn" onClick={onInstall}>
+            Add to home screen
+          </button>
+        )}
         <button className="text-btn danger" onClick={logout} disabled={busy}>
           Log out
         </button>

@@ -10,6 +10,8 @@ import VisitEditor from './components/VisitEditor';
 import TryEditor from './components/TryEditor';
 import JoinScreen from './components/JoinScreen';
 import SettingsSheet from './components/SettingsSheet';
+import InstallGuide from './components/InstallGuide';
+import { isStandalone, platform } from './install';
 import Sheet from './components/Sheet';
 import { ensureRestaurant } from './restaurants';
 
@@ -47,6 +49,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [editor, setEditor] = useState(null); // { kind: 'visit'|'try'|'choose', restaurant?, visit? }
   const [showSettings, setShowSettings] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const [joinCode] = useState(() => codeFromUrl() || rememberedCode());
@@ -128,6 +131,19 @@ export default function App() {
   }, [status, locate]);
 
   useEffect(() => store.set('rr_section', section), [section]);
+
+  // First time on a phone browser (e.g. from an invite link): show how to add it to the home screen.
+  useEffect(() => {
+    if (status !== 'ready' || isStandalone() || platform() === 'desktop') return;
+    if (store.get('rr_install_done')) return;
+    try {
+      if (sessionStorage.getItem('rr_install_later')) return;
+    } catch {
+      /* ignore */
+    }
+    const t = setTimeout(() => setShowInstall(true), 600);
+    return () => clearTimeout(t);
+  }, [status]);
 
   const rows = useMemo(() => buildRows(restaurants, visits, loc), [restaurants, visits, loc]);
   const selected = rows.find((r) => r.id === selectedId) || null;
@@ -313,6 +329,10 @@ export default function App() {
         <SettingsSheet
           onClose={() => setShowSettings(false)}
           onChanged={load}
+          onInstall={() => {
+            setShowSettings(false);
+            setShowInstall(true);
+          }}
           onLogout={() => {
             setShowSettings(false);
             setMeId(null);
@@ -322,6 +342,23 @@ export default function App() {
             boot();
           }}
           showToast={showToast}
+        />
+      )}
+
+      {showInstall && (
+        <InstallGuide
+          onClose={() => {
+            try {
+              sessionStorage.setItem('rr_install_later', '1');
+            } catch {
+              /* ignore */
+            }
+            setShowInstall(false);
+          }}
+          onDone={() => {
+            store.set('rr_install_done', true);
+            setShowInstall(false);
+          }}
         />
       )}
 

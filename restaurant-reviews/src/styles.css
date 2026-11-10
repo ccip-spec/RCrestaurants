@@ -963,3 +963,45 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 .profile-name input { font-family: var(--hand); font-size: 1.3rem; text-transform: none; letter-spacing: 0; color: var(--pen); }
 .person { display: flex; align-items: center; gap: 10px; }
 .invite-box { margin-bottom: 6px; }
+
+/* ---------- install guide ---------- */
+.install-lead { font-family: var(--hand); font-size: 1.15rem; margin: 0 0 12px; }
+.install-steps { margin: 0 0 8px; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; }
+.install-steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 12px 0 12px 44px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.install-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--red);
+  color: var(--red);
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 1.1rem;
+  display: grid;
+  place-items: center;
+}
+.ios-icon {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  vertical-align: -5px;
+  color: #2a6fd6;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 2px;
+  margin: 0 2px;
+}
+.install-foot { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 16px; }
+.install-foot .text-btn { align-self: center; }
