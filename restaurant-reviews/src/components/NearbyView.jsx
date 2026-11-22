@@ -5,7 +5,7 @@ import { nearbyOsm } from '../photon';
 import { fmtMiles, haversineMiles } from '../utils';
 import Score from './Score';
 import Thumb from './Thumb';
-import { usePeople, isTry, nameOf } from '../people';
+import { usePeople, inTry, inBeen, nameOf } from '../people';
 
 const RADII = [
   { m: 400, label: '¼ mi' },
@@ -13,7 +13,7 @@ const RADII = [
   { m: 1600, label: '1 mi' },
 ];
 
-export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, onLogNew }) {
+export default function NearbyView({ rows, loc, scope, onLocate, onSelect, onQuickTry, onLogNew }) {
   const { me, byId } = usePeople();
   const [radius, setRadius] = useState(800);
   const [sitDown, setSitDown] = useState(false);
@@ -59,15 +59,16 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
 
   const { tryNear, favNear, fresh } = useMemo(() => {
     const withDist = rows.filter((r) => r.lat != null).map((r) => ({ r, d: miles(r) }));
-    const tryNear = withDist.filter(({ r, d }) => isTry(r, me?.id) && d <= Math.max(radiusMi * 2, 1)).sort((a, b) => a.d - b.d);
+    const tryNear = withDist.filter(({ r, d }) => inTry(r, me?.id, scope) && d <= Math.max(radiusMi * 2, 1)).sort((a, b) => a.d - b.d);
     const favNear = withDist
-      .filter(({ r, d }) => r.been && r.overall != null && r.overall >= 7.3 && d <= Math.max(radiusMi * 2, 1))
+      
+      .filter(({ r, d }) => inBeen(r, me?.id, scope) && r.overall != null && r.overall >= 7.3 && d <= Math.max(radiusMi * 2, 1))
       .sort((a, b) => b.r.overall - a.r.overall)
       .slice(0, 8);
     const fresh = places.filter((p) => !known(p)).map((p) => ({ p, d: miles(p) })).sort((a, b) => a.d - b.d);
     return { tryNear, favNear, fresh };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, places, center.lat, center.lng, radiusMi, me?.id]);
+  }, [rows, places, center.lat, center.lng, radiusMi, me?.id, scope]);
 
   const quickTry = async (p) => {
     setAdded((a) => ({ ...a, [p.osm_ref]: 'saving' }));
@@ -99,7 +100,7 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
 
       {tryNear.length > 0 && (
         <>
-          <h3 className="section-title">On your try list</h3>
+          <h3 className="section-title">{scope === 'all' ? 'On try lists' : 'On your try list'}</h3>
           <ol className="check-lines plain">
             {tryNear.map(({ r, d }) => (
               <li key={r.id}>
@@ -112,7 +113,7 @@ export default function NearbyView({ rows, loc, onLocate, onSelect, onQuickTry, 
                       {r.tryBy.length
                         ? `Added by ${r.tryBy.map((id) => (id === me?.id ? 'you' : nameOf(byId, id))).join(', ')}`
                         : 'Saved to try'}
-                      {r.recommended_by ? `, from ${r.recommended_by}` : ''}
+                      {r.tryRec ? `, from ${r.tryRec}` : ''}
                     </span>
                   </span>
                   <span className="line-amount">

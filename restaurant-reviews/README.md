@@ -40,3 +40,9 @@ Edit `.env.local` with your keys first.
 - There's no password. Anyone with the link can view and edit, so don't post the URL publicly.
 - Supabase pauses free projects after about a week of no activity. If the site shows a load error, open the Supabase dashboard and restore the project.
 - Overall score = the average of every individual score across all visits. Each visit also shows the average of the two scores.
+
+## ReCIPes, try lists, and privacy
+- ReCIPes: home recipes in their own section. Each recipe is Public (everyone in the group) or Private (only you).
+- Try lists are per person, and each try is Public or Private. A place stays on your try list until you rate it, even if someone else goes first.
+- "Just mine / Show all" at the top switches Been, To try, ReCIPes, Nearby and the map between your own and everyone's.
+- Setup: run `migrations/006-recipes-and-privacy.sql` once in Supabase SQL Editor.

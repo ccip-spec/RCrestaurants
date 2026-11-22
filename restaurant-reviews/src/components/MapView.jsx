@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { HOME_CENTER, LOCAL_RADIUS_MILES } from '../config';
-import { usePeople, ratersIn, isTry } from '../people';
+import { usePeople, ratersIn, isTry, inTry, inBeen } from '../people';
+
+// Which marker a place gets: your own try list wins, then places rated, then others' try lists.
+function kindOf(r, meId, scope) {
+  if (isTry(r, meId)) return 'try';
+  if (inBeen(r, meId, scope)) return 'been';
+  if (inTry(r, meId, scope)) return 'try';
+  return null;
+}
 import { fmtScore, haversineMiles, priceLabel, store, tierOf } from '../utils';
 import { MealFilter } from './Meals';
 
@@ -46,10 +54,10 @@ function popupContent(r, members, meId, onOpen) {
     box.append(scores);
     if (tier) box.append(el('div', 'popup-tier', tier.label));
   }
-  if (mine) {
-    const who = r.tryBy.length ? `, added by ${r.tryBy.map(nm).join(', ')}` : '';
-    const from = r.recommended_by ? `, from ${r.recommended_by}` : '';
-    box.append(el('div', 'popup-meta', `On your try list${who}${from}`));
+  if (r.tryBy.length) {
+    const who = `added by ${r.tryBy.map(nm).join(', ')}`;
+    const from = r.tryRec ? `, from ${r.tryRec}` : '';
+    box.append(el('div', 'popup-meta', `${mine ? 'On your try list, ' : 'On a try list, '}${who}${from}`));
   }
   const btn = el('button', 'popup-btn', r.been ? 'Open check' : 'Open');
   btn.onclick = onOpen;
@@ -57,7 +65,7 @@ function popupContent(r, members, meId, onOpen) {
   return box;
 }
 
-export default function MapView({ rows, loc, active, loading, onLocate, onSelect }) {
+export default function MapView({ rows, loc, scope, active, loading, onLocate, onSelect }) {
   const { members, me } = usePeople();
   const meId = me?.id;
   const elRef = useRef(null);
@@ -100,8 +108,9 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
     for (const r of rows) {
       if (r.lat == null || r.lng == null) continue;
       // Your try list wins: a place others rated but you haven't tried shows as "Try".
-      const tryForMe = isTry(r, meId);
-      if (tryForMe ? !show.try : !show.been) continue;
+      const kind = kindOf(r, meId, scope);
+      if (!kind || (kind === 'try' ? !show.try : !show.been)) continue;
+      const tryForMe = kind === 'try';
       if (meal && !r.meals.includes(meal)) continue;
       const tier = tierOf(r.overall);
       const left = !tryForMe
@@ -134,7 +143,7 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
       const near = all.filter(([la, ln]) => haversineMiles(c.lat, c.lng, la, ln) <= LOCAL_RADIUS_MILES);
       fitTo(map, near.length ? near : all);
     }
-  }, [rows, loc, show, meal, members, meId]);
+  }, [rows, loc, show, meal, members, meId, scope]);
 
   // Your location dot.
   useEffect(() => {
@@ -166,7 +175,10 @@ export default function MapView({ rows, loc, active, loading, onLocate, onSelect
 
   const showAll = () => {
     const pts = rows
-      .filter((r) => r.lat != null && (isTry(r, meId) ? show.try : show.been) && (!meal || r.meals.includes(meal)))
+      .filter((r) => {
+        const kind = kindOf(r, meId, scope);
+        return r.lat != null && kind && (kind === 'try' ? show.try : show.been) && (!meal || r.meals.includes(meal));
+      })
       .map((r) => [r.lat, r.lng]);
     fitTo(mapRef.current, pts);
   };

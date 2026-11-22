@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { usePeople, ratersIn, isTry, nameOf } from '../people';
+import { usePeople, ratersIn, inTry, inBeen, nameOf } from '../people';
+import { ScopeToggle } from './Privacy';
 import Avatar from './Avatar';
 import { fmtDate, fmtMiles, fmtScore, priceLabel, store, TIERS, MEALS } from '../utils';
 import { MealTags, MealFilter } from './Meals';
@@ -7,6 +8,7 @@ import Meta from './Meta';
 import Score from './Score';
 import Thumb from './Thumb';
 import NearbyView from './NearbyView';
+import { RECIPES_NAME } from '../recipes';
 
 const beenSorts = (members) => [
   { key: 'overall', label: 'Overall rating' },
@@ -39,6 +41,8 @@ const EMPTY_FILTERS = { q: '', cuisine: '', area: '', price: '', tier: '', meal:
 
 export default function ListView({
   rows, loc, loading, user, section, onSection: setSection, onSettings, onLocate, onSelect, onQuickTry, onLogNew,
+  recipes, // { count, view }
+  scope, onScope,
 }) {
   const [sorts, setSorts] = useState(() =>
     store.get('rr_sorts', { been: { key: 'overall', dir: 'desc' }, try: { key: 'added', dir: 'desc' } })
@@ -50,9 +54,9 @@ export default function ListView({
   useEffect(() => store.set('rr_filters2', filters), [filters]);
 
   const { members, me, byId } = usePeople();
-  const been = useMemo(() => rows.filter((r) => r.been), [rows]);
-  // Each person's own try list: stays until they log a visit there.
-  const toTry = useMemo(() => rows.filter((r) => isTry(r, me?.id)), [rows, me?.id]);
+  // "Just mine" = places you rated / your own try list. "Show all" = everyone's (public tries only).
+  const been = useMemo(() => rows.filter((r) => inBeen(r, me?.id, scope)), [rows, me?.id, scope]);
+  const toTry = useMemo(() => rows.filter((r) => inTry(r, me?.id, scope)), [rows, me?.id, scope]);
   const base = section === 'been' ? been : toTry;
   const sortOptions = section === 'been' ? beenSorts(members) : TRY_SORTS;
   const saved = sorts[section] || sorts.been;
@@ -73,7 +77,7 @@ export default function ListView({
     const q = filters.q.trim().toLowerCase();
     const tierMin = filters.tier ? TIERS.find((t) => t.key === filters.tier)?.min : null;
     const filtered = base.filter((r) => {
-      const hay = `${r.name} ${r.cuisine || ''} ${r.neighborhood || ''} ${r.city || ''} ${r.recommended_by || ''}`;
+      const hay = `${r.name} ${r.cuisine || ''} ${r.neighborhood || ''} ${r.city || ''} ${r.tryRec}`;
       if (q && !hay.toLowerCase().includes(q)) return false;
       if (filters.cuisine && r.cuisine !== filters.cuisine) return false;
       if (filters.area && (r.neighborhood || r.city) !== filters.area) return false;
@@ -108,7 +112,7 @@ export default function ListView({
   return (
     <div className="list-view">
       {/* The boxes printed across the top of a guest check */}
-      <div className="check-head" role="tablist">
+      <div className={`check-head ${recipes ? 'five' : ''}`} role="tablist">
         <button
           role="tab"
           aria-selected={section === 'been'}
@@ -136,6 +140,17 @@ export default function ListView({
           <span className="box-label">Nearby</span>
           <span className="box-value near-pin">⌖</span>
         </button>
+        {recipes && (
+          <button
+            role="tab"
+            aria-selected={section === 'recipes'}
+            className={`box recipes-box ${section === 'recipes' ? 'on' : ''}`}
+            onClick={() => setSection('recipes')}
+          >
+            <span className="box-label">{RECIPES_NAME}</span>
+            <span className="box-value">{recipes.count}</span>
+          </button>
+        )}
         <button className="box server" onClick={onSettings} title="Settings">
           <span className="box-label">Server</span>
           <span className="server-me">
@@ -145,8 +160,12 @@ export default function ListView({
         </button>
       </div>
 
-      {section === 'near' ? (
-        <NearbyView rows={rows} loc={loc} onLocate={onLocate} onSelect={onSelect} onQuickTry={onQuickTry} onLogNew={onLogNew} />
+      <ScopeToggle value={scope} onChange={onScope} />
+
+      {section === 'recipes' && recipes ? (
+        recipes.view
+      ) : section === 'near' ? (
+        <NearbyView rows={rows} loc={loc} scope={scope} onLocate={onLocate} onSelect={onSelect} onQuickTry={onQuickTry} onLogNew={onLogNew} />
       ) : (
       <>
       <div className="list-controls">
@@ -266,13 +285,14 @@ export default function ListView({
                         Added by {r.tryBy.map((id) => (id === me?.id ? 'you' : nameOf(byId, id))).join(', ')}
                       </span>
                     )}
-                    {r.recommended_by && <span>From {r.recommended_by}</span>}
+                    {r.tryRec && <span>From {r.tryRec}</span>}
+                    {r.activeTries.some((t) => !t.is_public) && <span className="private-tag">Private</span>}
                     {ratersIn(members, r.avg).map((id) => (
                       <span key={id}>
                         {nameOf(byId, id)} went <b>{fmtScore(r.avg[id])}</b>
                       </span>
                     ))}
-                    {r.try_notes && <span className="clip">{r.try_notes}</span>}
+                    {r.tryNotes && <span className="clip">{r.tryNotes}</span>}
                   </span>
                 )}
               </span>
@@ -292,8 +312,12 @@ export default function ListView({
       {!loading && base.length === 0 && (
         <p className="empty">
           {section === 'been'
-            ? 'Nothing here yet. Tap + to log your first visit.'
-            : 'No places saved yet. Tap + and choose "Add to try list".'}
+            ? scope === 'mine'
+              ? "You haven't rated anywhere yet. Tap + to log a visit, or switch to Show all."
+              : 'Nothing here yet. Tap + to log your first visit.'
+            : scope === 'mine'
+              ? 'Your try list is empty. Tap + and choose "Add to try list".'
+              : 'No places saved yet. Tap + and choose "Add to try list".'}
         </p>
       )}
       {!loading && base.length > 0 && list.length === 0 && <p className="empty">No matches for those filters.</p>}

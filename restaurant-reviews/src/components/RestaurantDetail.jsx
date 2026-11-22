@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { supabase, photoUrl, PHOTO_BUCKET } from '../supabase';
-import { usePeople, ratersIn, nameOf, isTry } from '../people';
+import { usePeople, ratersIn, nameOf, isTry, myTry } from '../people';
+import { saveTry } from '../restaurants';
+import { PrivateTag } from './Privacy';
 import { compressImage, fmtDate, fmtMiles, fmtMoney, fmtScore, mapsUrl, priceLabel, siteHost, visitAvg } from '../utils';
 import Sheet from './Sheet';
 import Meta from './Meta';
@@ -83,7 +85,7 @@ function VisitBlock({ visit, onEdit, onDelete }) {
 export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit, onChanged, onDeleted, showToast }) {
   const { members, byId, me } = usePeople();
   const tryForMe = isTry(row, me?.id);
-  const iAdded = row.tryBy.includes(me?.id);
+  const mine = myTry(row, me?.id);
   const iRated = row.avg[me?.id] != null;
   const who = (id) => (id === me?.id ? 'you' : nameOf(byId, id));
   const [editing, setEditing] = useState(false);
@@ -97,8 +99,8 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
       neighborhood: row.neighborhood || '',
       price: row.price ? String(row.price) : '',
       website: row.website || '',
-      recommended_by: row.recommended_by || '',
-      try_notes: row.try_notes || '',
+      recommended_by: mine?.recommended_by || '',
+      try_notes: mine?.notes || '',
       meal_tags: row.meal_tags || [],
     });
     setEditing(true);
@@ -115,13 +117,18 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
         neighborhood: info.neighborhood.trim() || null,
         price: info.price ? Number(info.price) : null,
         website: info.website.trim() || null,
-        recommended_by: info.recommended_by.trim() || null,
-        try_notes: info.try_notes.trim() || null,
         meal_tags: info.meal_tags,
       })
       .eq('id', row.id);
+    let tryError = null;
+    if (!error && tryForMe) {
+      ({ error: tryError } = await supabase
+        .from('tries')
+        .update({ recommended_by: info.recommended_by.trim() || null, notes: info.try_notes.trim() || null })
+        .eq('id', mine.id));
+    }
     setBusy(false);
-    if (error) return showToast(error.message);
+    if (error || tryError) return showToast((error || tryError).message);
     setEditing(false);
     onChanged();
   };
@@ -166,7 +173,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
   const deleteRestaurant = async () => {
     const msg = row.been
       ? `Delete ${row.name} and its ${row.visits.length} visit(s) for everyone? This can't be undone.`
-      : `Remove ${row.name}?`;
+      : `Delete ${row.name} for everyone, including everyone's try lists?`;
     if (!confirm(msg)) return;
     setBusy(true);
     const photos = row.visits.flatMap((v) => v.photos || []);
@@ -175,22 +182,38 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
     setBusy(false);
     if (error) return showToast(error.message);
     if (photos.length) await supabase.storage.from(PHOTO_BUCKET).remove(photos);
-    onDeleted(row.been ? 'Restaurant deleted' : 'Removed from try list');
+    onDeleted('Restaurant deleted');
   };
 
-  // Take your name off the try list. If nobody else added it and nobody has been, the place goes away.
+  // Only takes it off your list. Other people's tries stay.
   const removeFromTry = async () => {
-    const rest = row.tryBy.filter((id) => id !== me?.id);
-    if (!row.been && rest.length === 0) return deleteRestaurant();
     setBusy(true);
-    const { error } = await supabase
-      .from('restaurants')
-      .update({ try_by: rest, want_to_try: rest.length > 0 })
-      .eq('id', row.id);
+    const { error } = await supabase.from('tries').delete().eq('id', mine.id);
     setBusy(false);
     if (error) return showToast(error.message);
     onChanged();
     showToast('Removed from your try list');
+  };
+
+  const addToMine = async () => {
+    setBusy(true);
+    try {
+      await saveTry(row.id, me.id, { isPublic: true });
+      onChanged();
+      showToast('Added to your try list');
+    } catch (e) {
+      showToast(e.message || String(e));
+    }
+    setBusy(false);
+  };
+
+  const togglePrivate = async () => {
+    setBusy(true);
+    const { error } = await supabase.from('tries').update({ is_public: !mine.is_public }).eq('id', mine.id);
+    setBusy(false);
+    if (error) return showToast(error.message);
+    onChanged();
+    showToast(mine.is_public ? 'Now private: only you see it' : 'Now public');
   };
 
   const host = siteHost(row.website);
@@ -221,20 +244,34 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
         </div>
       </div>
 
-      {tryForMe && (
+      {row.activeTries.length > 0 && (
         <div className="try-box">
           <div className="try-stamp">To try</div>
-          {row.tryBy.length > 0 && (
-            <p>
-              Added by <b>{row.tryBy.map(who).join(', ')}</b>
-            </p>
+          {row.activeTries.map((t) => (
+            <div className="try-entry" key={t.id}>
+              <p>
+                Added by <b>{who(t.member_id)}</b>
+                {t.recommended_by && (
+                  <>
+                    {' '}
+                    · from <b>{t.recommended_by}</b>
+                  </>
+                )}
+                {!t.is_public && <PrivateTag />}
+              </p>
+              {t.notes && <p className="visit-notes">{t.notes}</p>}
+            </div>
+          ))}
+          {tryForMe && (
+            <div className="row gap wrap">
+              <button className="text-btn" onClick={togglePrivate} disabled={busy}>
+                {mine.is_public ? 'Make private' : 'Make public'}
+              </button>
+              <button className="text-btn danger" onClick={removeFromTry} disabled={busy}>
+                Remove from my try list
+              </button>
+            </div>
           )}
-          {row.recommended_by && (
-            <p>
-              Recommended by <b>{row.recommended_by}</b>
-            </p>
-          )}
-          {row.try_notes && <p className="visit-notes">{row.try_notes}</p>}
         </div>
       )}
 
@@ -269,7 +306,7 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
           {row.visits.map((v) => (
             <VisitBlock key={v.id} visit={v} onEdit={() => onEditVisit(row, v)} onDelete={() => deleteVisit(v)} />
           ))}
-          {row.recommended_by && !tryForMe && <p className="muted small">Recommended by {row.recommended_by}</p>}
+          {row.tryRec && !row.activeTries.length && <p className="muted small">Recommended by {row.tryRec}</p>}
         </>
       )}
 
@@ -288,9 +325,9 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
                 Remove photo
               </button>
             )}
-            {tryForMe && (iAdded || (!row.been && row.tryBy.length === 0)) && (
-              <button className="text-btn danger" onClick={removeFromTry} disabled={busy}>
-                Remove from try list
+            {!tryForMe && !iRated && (
+              <button className="text-btn" onClick={addToMine} disabled={busy}>
+                Add to my try list
               </button>
             )}
           </div>
@@ -334,15 +371,17 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
               <span>Good for</span>
               <MealPicker value={info.meal_tags} onChange={(v) => setInfo({ ...info, meal_tags: v })} />
             </div>
-            <label>
-              Recommended by
-              <input value={info.recommended_by} onChange={(e) => setInfo({ ...info, recommended_by: e.target.value })} />
-            </label>
-            {(tryForMe || row.tryBy.length > 0) && (
-              <label>
-                Notes
-                <textarea rows={3} value={info.try_notes} onChange={(e) => setInfo({ ...info, try_notes: e.target.value })} />
-              </label>
+            {tryForMe && (
+              <>
+                <label>
+                  Recommended by (your try)
+                  <input value={info.recommended_by} onChange={(e) => setInfo({ ...info, recommended_by: e.target.value })} />
+                </label>
+                <label>
+                  Notes (your try)
+                  <textarea rows={3} value={info.try_notes} onChange={(e) => setInfo({ ...info, try_notes: e.target.value })} />
+                </label>
+              </>
             )}
             <div className="row gap">
               <button className="btn primary" onClick={saveInfo} disabled={busy}>

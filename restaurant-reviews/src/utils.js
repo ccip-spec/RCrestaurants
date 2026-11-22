@@ -120,7 +120,9 @@ function byVisitOrder(a, b) {
   return b.created_at.localeCompare(a.created_at);
 }
 
-export function buildRows(restaurants, visits, loc) {
+export function buildRows(restaurants, visits, loc, tries = []) {
+  const triesBy = {};
+  for (const t of tries) (triesBy[t.restaurant_id] ||= []).push(t);
   const byRestaurant = {};
   for (const v of visits) {
     (byRestaurant[v.restaurant_id] ||= []).push(v);
@@ -137,11 +139,18 @@ export function buildRows(restaurants, visits, loc) {
     const overall = mean(vs.flatMap((v) => Object.values(v.scores || {})));
     const distance =
       loc && r.lat != null && r.lng != null ? haversineMiles(loc.lat, loc.lng, r.lat, r.lng) : null;
+    // Tries this phone can see (yours, plus everyone's public ones). Active = that person hasn't rated it yet.
+    const ts = (triesBy[r.id] || []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const active = ts.filter((t) => avg[t.member_id] == null);
     return {
       ...r,
       visits: vs,
       been: vs.length > 0,
-      tryBy: r.try_by || [],
+      tries: ts,
+      activeTries: active,
+      tryBy: active.map((t) => t.member_id),
+      tryRec: [...new Set(ts.map((t) => t.recommended_by).filter(Boolean))].join(', '),
+      tryNotes: active.map((t) => t.notes).filter(Boolean).join(' · '),
       avg,
       overall,
       lastVisit: vs.find((v) => v.visit_date)?.visit_date || null,
