@@ -1005,3 +1005,59 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 }
 .install-foot { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 16px; }
 .install-foot .text-btn { align-self: center; }
+
+/* ---------- ReCIPes (C and R only) ---------- */
+.check-head.five { grid-template-columns: 1fr 1fr 1fr 1.15fr 0.8fr; }
+.check-head.five .box { padding: 6px 7px; min-width: 0; }
+.recipes-box .box-label { text-transform: none; letter-spacing: 0.03em; }
+.recipe-add { margin-top: 8px; }
+.recipe-row { grid-template-columns: 26px 1fr 80px; }
+.recipe-time { font-family: var(--hand); font-weight: 700; font-size: 1rem; color: var(--pen); text-align: right; }
+.recipe-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--muted); font-size: 0.9rem; }
+.recipe-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ingredients, .steps { list-style: none; margin: 0; padding: 0; }
+.ingredients li, .steps li { border-bottom: 1px solid var(--rule); }
+.ingredients button, .steps button {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 2px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--hand);
+  font-size: 1.1rem;
+  line-height: 1.35;
+  color: var(--pen);
+}
+.ingredients .tick {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border: 1.5px solid var(--print);
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  font-family: var(--ui);
+  font-size: 0.8rem;
+  color: var(--paper);
+}
+.ingredients .done .tick { background: var(--print); }
+.ingredients .done > span:last-child, .steps .done > span:last-child { text-decoration: line-through; color: var(--muted); }
+.step-no {
+  flex: none;
+  min-width: 24px;
+  font-family: var(--printed);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--red);
+  padding-top: 2px;
+}
+@media (max-width: 380px) {
+  .check-head.five .box-label { font-size: 0.62rem; }
+  .check-head.five .box-value { font-size: 1.35rem; }
+}
+.check-head.five .box.server .box-value { display: none; }

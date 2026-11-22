@@ -40,3 +40,7 @@ Edit `.env.local` with your keys first.
 - There's no password. Anyone with the link can view and edit, so don't post the URL publicly.
 - Supabase pauses free projects after about a week of no activity. If the site shows a load error, open the Supabase dashboard and restore the project.
 - Overall score = the average of every individual score across all visits. Each visit also shows the average of the two scores.
+
+## ReCIPes (C and R only)
+Home recipes live in their own section at the top of the list. Only the members named C and R (the two original people) see it; the database blocks everyone else.
+Setup: run `migrations/006-recipes.sql` once in Supabase SQL Editor.

@@ -14,6 +14,10 @@ import InstallGuide from './components/InstallGuide';
 import { isStandalone, platform } from './install';
 import Sheet from './components/Sheet';
 import { ensureRestaurant } from './restaurants';
+import { isAdmin } from './recipes';
+import RecipesView from './components/RecipesView';
+import RecipeDetail from './components/RecipeDetail';
+import RecipeEditor from './components/RecipeEditor';
 
 // Every phone gets an anonymous sign-in (no email). Returns this phone's person, or null if not joined yet.
 async function signInAndWho() {
@@ -50,6 +54,10 @@ export default function App() {
   const [editor, setEditor] = useState(null); // { kind: 'visit'|'try'|'choose', restaurant?, visit? }
   const [showSettings, setShowSettings] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
+  const [recipes, setRecipes] = useState([]);
+  const [recipeError, setRecipeError] = useState(null);
+  const [recipeId, setRecipeId] = useState(null);
+  const [recipeEditor, setRecipeEditor] = useState(null); // { recipe? }
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const [joinCode] = useState(() => codeFromUrl() || rememberedCode());
@@ -104,6 +112,36 @@ export default function App() {
     }
     setLoading(false);
   }, []);
+
+  // Recipes are C and R only. The database also blocks everyone else.
+  const meRow = members.find((x) => x.id === meId);
+  const admin = isAdmin(meRow);
+  const loadRecipes = useCallback(async () => {
+    const { data, error } = await supabase.from('recipes').select('*').order('name');
+    if (error) {
+      setRecipeError(
+        /recipes/.test(error.message) && /exist|schema cache/i.test(error.message)
+          ? 'the recipes table is not set up yet. Run migrations/006-recipes.sql in Supabase.'
+          : error.message
+      );
+    } else {
+      setRecipes(data);
+      setRecipeError(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'ready' || !admin) return;
+    loadRecipes();
+    const onVisible = () => document.visibilityState === 'visible' && loadRecipes();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [status, admin, loadRecipes]);
+
+  // Someone who isn't C or R never lands on the recipes section.
+  useEffect(() => {
+    if (members.length && !admin && section === 'recipes') setSection('been');
+  }, [members.length, admin, section]);
 
   useEffect(() => {
     if (status !== 'ready') return;
@@ -191,6 +229,8 @@ export default function App() {
   }
 
   const beenCount = rows.filter((r) => r.been).length;
+  const selectedRecipe = recipes.find((r) => r.id === recipeId) || null;
+  const recipeCuisines = [...new Set(recipes.map((r) => r.cuisine).filter(Boolean))].sort();
 
   return (
     <PeopleContext.Provider value={people}>
@@ -234,6 +274,23 @@ export default function App() {
             onLogNew={(place) => setEditor({ kind: 'visit', choice: { type: 'new', place } })}
             onLocate={() => locate(false)}
             onSelect={setSelectedId}
+            recipes={
+              admin
+                ? {
+                    count: recipes.length,
+                    view: (
+                      <RecipesView
+                        recipes={recipes}
+                        error={recipeError}
+                        loading={loading}
+                        onSelect={setRecipeId}
+                        onAdd={() => setRecipeEditor({})}
+                        onRetry={loadRecipes}
+                      />
+                    ),
+                  }
+                : null
+            }
           />
         </div>
         <div className={`pane ${tab === 'map' ? '' : 'hidden'}`}>
@@ -287,6 +344,18 @@ export default function App() {
               <span className="choose-title">Add to try list</span>
               <span className="choose-sub">Save a place someone recommended</span>
             </button>
+            {admin && (
+              <button
+                className="choose-btn"
+                onClick={() => {
+                  setEditor(null);
+                  setRecipeEditor({});
+                }}
+              >
+                <span className="choose-title">Add a recipe</span>
+                <span className="choose-sub">A meal you make at home</span>
+              </button>
+            )}
           </div>
         </Sheet>
       )}
@@ -321,6 +390,39 @@ export default function App() {
             setSection('try');
             setTab('list');
             showToast('Added to try list');
+          }}
+        />
+      )}
+
+      {admin && selectedRecipe && (
+        <RecipeDetail
+          key={selectedRecipe.id}
+          recipe={selectedRecipe}
+          onClose={() => setRecipeId(null)}
+          onEdit={(r) => setRecipeEditor({ recipe: r })}
+          onDeleted={(msg) => {
+            setRecipeId(null);
+            loadRecipes();
+            showToast(msg);
+          }}
+          showToast={showToast}
+        />
+      )}
+
+      {admin && recipeEditor && (
+        <RecipeEditor
+          recipe={recipeEditor.recipe || null}
+          user={user}
+          cuisines={recipeCuisines}
+          onClose={() => setRecipeEditor(null)}
+          onSaved={async (id) => {
+            const wasEdit = Boolean(recipeEditor.recipe);
+            await loadRecipes();
+            setRecipeEditor(null);
+            setSection('recipes');
+            setTab('list');
+            setRecipeId(id);
+            showToast(wasEdit ? 'Recipe saved' : 'Recipe added');
           }}
         />
       )}
