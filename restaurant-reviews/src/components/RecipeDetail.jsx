@@ -4,9 +4,11 @@ import { usePeople, nameOf } from '../people';
 import { siteHost } from '../utils';
 import { fmtMinutes, totalMin } from '../recipes';
 import Sheet from './Sheet';
+import { PrivateTag } from './Privacy';
 
 export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, showToast }) {
-  const { byId } = usePeople();
+  const { byId, me } = usePeople();
+  const isMine = recipe.created_by === me?.id;
   // Tap an ingredient or step to cross it off while cooking (this phone only, resets on close).
   const [gotIt, setGotIt] = useState({});
   const [doneSteps, setDoneSteps] = useState({});
@@ -30,6 +32,7 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, showT
         {r.meal_type && <span className="visit-meal">{r.meal_type}</span>}
         {r.cuisine && <span>{r.cuisine}</span>}
         {r.created_by && <span>From {nameOf(byId, r.created_by)}</span>}
+        {!r.is_public && <PrivateTag />}
       </div>
 
       {Boolean(r.servings || r.prep_min || r.cook_min) && (
@@ -113,16 +116,18 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, showT
         </p>
       )}
 
-      <div className="detail-admin">
-        <div className="row gap wrap">
-          <button className="text-btn" onClick={() => onEdit(r)}>
-            Edit recipe
-          </button>
-          <button className="text-btn danger" onClick={remove} disabled={busy}>
-            Delete recipe
-          </button>
+      {isMine && (
+        <div className="detail-admin">
+          <div className="row gap wrap">
+            <button className="text-btn" onClick={() => onEdit(r)}>
+              Edit recipe
+            </button>
+            <button className="text-btn danger" onClick={remove} disabled={busy}>
+              Delete recipe
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </Sheet>
   );
 }

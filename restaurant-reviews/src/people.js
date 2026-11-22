@@ -17,10 +17,21 @@ export function ratersIn(members, scores) {
   return ids;
 }
 
-// On this person's try list: someone added it, and this person hasn't logged a score there yet.
-// (A place with no visits and nobody recorded as adding it also counts — older entries.)
+// Try lists are per person. A try stays on someone's list until that person logs a score there,
+// so R going somewhere doesn't take it off C's list.
+export const myTry = (row, meId) => row.tries.find((t) => t.member_id === meId) || null;
+
+// On this person's own try list.
 export function isTry(row, meId) {
-  return (row.tryBy.length > 0 || !row.been) && row.avg[meId] == null;
+  return Boolean(myTry(row, meId)) && row.avg[meId] == null;
+}
+
+// scope: 'mine' = just what this person did / saved, 'all' = everyone (public items only for others).
+export function inTry(row, meId, scope) {
+  return scope === 'all' ? row.tryBy.length > 0 : isTry(row, meId);
+}
+export function inBeen(row, meId, scope) {
+  return scope === 'all' ? row.been : row.avg[meId] != null;
 }
 
 export function avatarSrc(member, photoUrl) {

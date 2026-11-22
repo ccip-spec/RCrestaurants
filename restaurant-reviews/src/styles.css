@@ -1061,3 +1061,25 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
   .check-head.five .box-value { font-size: 1.35rem; }
 }
 .check-head.five .box.server .box-value { display: none; }
+
+/* ---------- public / private, mine / all ---------- */
+.scope { margin-top: 10px; }
+.scope button { padding: 7px 4px; font-size: 0.9rem; }
+.private-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: var(--printed);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+  border: 1px solid var(--red);
+  border-radius: 3px;
+  padding: 0 5px;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+.line-people .private-tag { margin-left: 0; }
+.try-entry + .try-entry { border-top: 1px dashed var(--print-soft); margin-top: 6px; padding-top: 6px; }
+.field small { font-size: 0.8rem; }

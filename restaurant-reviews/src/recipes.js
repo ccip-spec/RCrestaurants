@@ -1,10 +1,7 @@
-// ReCIPes: home recipes for C and R only.
+// ReCIPes: home recipes. Public ones are shared with the group; private ones only their author sees.
 
 export const RECIPES_NAME = 'ReCIPes';
 export const RECIPE_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Side', 'Dessert', 'Snack', 'Drink'];
-
-// Only the two original people (C and R) see recipes. The database enforces the same rule.
-export const isAdmin = (member) => member?.legacy_key === 'c' || member?.legacy_key === 'r';
 
 // One entry per line. Strips pasted bullets and numbering ("- ", "• ", "1. ", "2) ", "Step 3:").
 export function splitLines(text, numbered = false) {

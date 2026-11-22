@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../supabase';
 import { RECIPE_TYPES, splitLines } from '../recipes';
 import Sheet from './Sheet';
+import { PublicToggle } from './Privacy';
 
 const num = (v) => {
   const n = parseInt(v, 10);
@@ -21,6 +22,7 @@ export default function RecipeEditor({ recipe, user, cuisines = [], onClose, onS
     steps: (recipe?.steps || []).join('\n'),
     notes: recipe?.notes || '',
     source_url: recipe?.source_url || '',
+    is_public: recipe ? recipe.is_public !== false : true,
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -41,6 +43,7 @@ export default function RecipeEditor({ recipe, user, cuisines = [], onClose, onS
       steps: splitLines(f.steps, true),
       notes: f.notes.trim() || null,
       source_url: f.source_url.trim() || null,
+      is_public: f.is_public,
       updated_at: new Date().toISOString(),
     };
     setSaving(true);
@@ -138,6 +141,7 @@ export default function RecipeEditor({ recipe, user, cuisines = [], onClose, onS
           Source link
           <input value={f.source_url} inputMode="url" placeholder="Optional" onChange={set('source_url')} />
         </label>
+        <PublicToggle value={f.is_public} onChange={(v) => setF((s) => ({ ...s, is_public: v }))} what="this recipe" />
       </div>
     </Sheet>
   );

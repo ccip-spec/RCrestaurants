@@ -46,23 +46,35 @@ export async function ensureRestaurant(choice, { loc, user, fields = {} }) {
     price: fields.price ?? null,
     website: details.website || null,
     photo: details.image || null,
-    want_to_try: Boolean(fields.want_to_try),
-    recommended_by: fields.recommended_by || null,
-    try_notes: fields.try_notes || null,
     meal_tags: fields.meal_tags || [],
-    try_by: fields.want_to_try && user ? [user] : [],
     created_by: user,
   };
 
   const { data, error } = await supabase.from('restaurants').insert(insert).select('id').single();
   if (error) {
-    // Already added by someone — reuse it.
+    // Already added by someone (maybe on their private try list) — reuse it.
     if (error.code === '23505' && insert.osm_ref) {
-      const found = await supabase.from('restaurants').select('id').eq('osm_ref', insert.osm_ref).single();
+      const found = await supabase.rpc('restaurant_id_for', { ref: insert.osm_ref });
       if (found.error) throw found.error;
-      return { id: found.data.id, created: false };
+      if (!found.data) throw error;
+      return { id: found.data, created: false };
     }
     throw error;
   }
   return { id: data.id, created: true };
+}
+
+// Put a place on this person's try list (or update their entry).
+export async function saveTry(restaurantId, user, { isPublic = true, recommendedBy = null, notes = null } = {}) {
+  const { error } = await supabase.from('tries').upsert(
+    {
+      restaurant_id: restaurantId,
+      member_id: user,
+      is_public: isPublic,
+      recommended_by: recommendedBy || null,
+      notes: notes || null,
+    },
+    { onConflict: 'restaurant_id,member_id' }
+  );
+  if (error) throw error;
 }

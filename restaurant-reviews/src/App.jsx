@@ -13,8 +13,7 @@ import SettingsSheet from './components/SettingsSheet';
 import InstallGuide from './components/InstallGuide';
 import { isStandalone, platform } from './install';
 import Sheet from './components/Sheet';
-import { ensureRestaurant } from './restaurants';
-import { isAdmin } from './recipes';
+import { ensureRestaurant, saveTry } from './restaurants';
 import RecipesView from './components/RecipesView';
 import RecipeDetail from './components/RecipeDetail';
 import RecipeEditor from './components/RecipeEditor';
@@ -47,6 +46,9 @@ export default function App() {
   const [section, setSection] = useState(() => store.get('rr_section', 'been'));
   const [restaurants, setRestaurants] = useState([]);
   const [visits, setVisits] = useState([]);
+  const [tries, setTries] = useState([]);
+  const [triesError, setTriesError] = useState(null);
+  const [scope, setScope] = useState(() => store.get('rr_scope', 'mine')); // 'mine' | 'all'
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [loc, setLoc] = useState(null);
@@ -96,11 +98,15 @@ export default function App() {
   }, [boot]);
 
   const load = useCallback(async () => {
-    const [m, r, v] = await Promise.all([
+    const [m, r, v, t] = await Promise.all([
       supabase.from('members').select('id, name, avatar, legacy_key, created_at').order('created_at').order('name'),
       supabase.from('restaurants').select('*'),
       supabase.from('visits').select('*'),
+      supabase.from('tries').select('*'),
     ]);
+    // Try lists load separately so the rest of the site still works if they fail.
+    setTries(t.error ? [] : t.data);
+    setTriesError(t.error ? t.error.message : null);
     const err = m.error || r.error || v.error;
     if (err) {
       setLoadError(err.message);
@@ -113,9 +119,7 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  // Recipes are C and R only. The database also blocks everyone else.
-  const meRow = members.find((x) => x.id === meId);
-  const admin = isAdmin(meRow);
+  // Recipes: everyone sees public ones plus their own private ones (enforced by the database).
   const loadRecipes = useCallback(async () => {
     const { data, error } = await supabase.from('recipes').select('*').order('name');
     if (error) {
@@ -131,17 +135,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (status !== 'ready' || !admin) return;
+    if (status !== 'ready') return;
     loadRecipes();
     const onVisible = () => document.visibilityState === 'visible' && loadRecipes();
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [status, admin, loadRecipes]);
+  }, [status, loadRecipes]);
 
-  // Someone who isn't C or R never lands on the recipes section.
-  useEffect(() => {
-    if (members.length && !admin && section === 'recipes') setSection('been');
-  }, [members.length, admin, section]);
+  useEffect(() => store.set('rr_scope', scope), [scope]);
 
   useEffect(() => {
     if (status !== 'ready') return;
@@ -183,7 +184,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, [status]);
 
-  const rows = useMemo(() => buildRows(restaurants, visits, loc), [restaurants, visits, loc]);
+  const rows = useMemo(() => buildRows(restaurants, visits, loc, tries), [restaurants, visits, loc, tries]);
   const selected = rows.find((r) => r.id === selectedId) || null;
 
   const people = useMemo(() => {
@@ -230,6 +231,7 @@ export default function App() {
 
   const beenCount = rows.filter((r) => r.been).length;
   const selectedRecipe = recipes.find((r) => r.id === recipeId) || null;
+  const shownRecipes = scope === 'all' ? recipes : recipes.filter((r) => r.created_by === meId);
   const recipeCuisines = [...new Set(recipes.map((r) => r.cuisine).filter(Boolean))].sort();
 
   return (
@@ -243,6 +245,11 @@ export default function App() {
       </header>
 
       <main className="main">
+        {triesError && tab === 'list' && (
+          <div className="banner error">
+            Try lists need a database update: run migrations/006-recipes-and-privacy.sql in Supabase.
+          </div>
+        )}
         {loadError && (
           <div className="banner error">
             Couldn't load your list: {loadError}
@@ -262,7 +269,8 @@ export default function App() {
             onSettings={() => setShowSettings(true)}
             onQuickTry={async (place) => {
               try {
-                await ensureRestaurant({ type: 'new', place }, { loc, user, fields: { want_to_try: true } });
+                const { id } = await ensureRestaurant({ type: 'new', place }, { loc, user });
+                await saveTry(id, user, { isPublic: true });
                 await load();
                 showToast(`${place.name} added to try list`);
                 return true;
@@ -274,28 +282,28 @@ export default function App() {
             onLogNew={(place) => setEditor({ kind: 'visit', choice: { type: 'new', place } })}
             onLocate={() => locate(false)}
             onSelect={setSelectedId}
-            recipes={
-              admin
-                ? {
-                    count: recipes.length,
-                    view: (
-                      <RecipesView
-                        recipes={recipes}
-                        error={recipeError}
-                        loading={loading}
-                        onSelect={setRecipeId}
-                        onAdd={() => setRecipeEditor({})}
-                        onRetry={loadRecipes}
-                      />
-                    ),
-                  }
-                : null
-            }
+            scope={scope}
+            onScope={setScope}
+            recipes={{
+              count: shownRecipes.length,
+              view: (
+                <RecipesView
+                  recipes={shownRecipes}
+                  scope={scope}
+                  error={recipeError}
+                  loading={loading}
+                  onSelect={setRecipeId}
+                  onAdd={() => setRecipeEditor({})}
+                  onRetry={loadRecipes}
+                />
+              ),
+            }}
           />
         </div>
         <div className={`pane ${tab === 'map' ? '' : 'hidden'}`}>
           <MapView
             rows={rows}
+            scope={scope}
             loc={loc}
             active={tab === 'map'}
             loading={loading}
@@ -344,7 +352,7 @@ export default function App() {
               <span className="choose-title">Add to try list</span>
               <span className="choose-sub">Save a place someone recommended</span>
             </button>
-            {admin && (
+            {(
               <button
                 className="choose-btn"
                 onClick={() => {
@@ -394,7 +402,7 @@ export default function App() {
         />
       )}
 
-      {admin && selectedRecipe && (
+      {selectedRecipe && (
         <RecipeDetail
           key={selectedRecipe.id}
           recipe={selectedRecipe}
@@ -409,7 +417,7 @@ export default function App() {
         />
       )}
 
-      {admin && recipeEditor && (
+      {recipeEditor && (
         <RecipeEditor
           recipe={recipeEditor.recipe || null}
           user={user}

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '../supabase';
-import { ensureRestaurant } from '../restaurants';
+import { ensureRestaurant, saveTry } from '../restaurants';
+import { myTry } from '../people';
+import { PublicToggle } from './Privacy';
 import { fmtScore } from '../utils';
 import PlacePicker, { ChosenPlace } from './PlacePicker';
 import Sheet from './Sheet';
@@ -11,6 +13,7 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
   const [recommendedBy, setRecommendedBy] = useState('');
   const [notes, setNotes] = useState('');
   const [meals, setMeals] = useState([]);
+  const [isPublic, setIsPublic] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -22,26 +25,24 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
     setSaving(true);
     try {
       let id;
+      const mine = choice.type === 'existing' ? myTry(choice.row, user) : null;
       if (choice.type === 'existing') {
         id = choice.row.id;
-        const { error: e } = await supabase
-          .from('restaurants')
-          .update({
-            want_to_try: true,
-            try_by: [...new Set([...(choice.row.try_by || []), user])],
-            recommended_by: recommendedBy.trim() || choice.row.recommended_by || null,
-            try_notes: notes.trim() || choice.row.try_notes || null,
-            meal_tags: [...new Set([...(choice.row.meal_tags || []), ...meals])],
-          })
-          .eq('id', id);
-        if (e) throw e;
+        if (meals.length) {
+          const { error: e } = await supabase
+            .from('restaurants')
+            .update({ meal_tags: [...new Set([...(choice.row.meal_tags || []), ...meals])] })
+            .eq('id', id);
+          if (e) throw e;
+        }
       } else {
-        ({ id } = await ensureRestaurant(choice, {
-          loc,
-          user,
-          fields: { want_to_try: true, recommended_by: recommendedBy.trim(), try_notes: notes.trim(), meal_tags: meals },
-        }));
+        ({ id } = await ensureRestaurant(choice, { loc, user, fields: { meal_tags: meals } }));
       }
+      await saveTry(id, user, {
+        isPublic,
+        recommendedBy: recommendedBy.trim() || mine?.recommended_by,
+        notes: notes.trim() || mine?.notes,
+      });
       onSaved(id);
     } catch (e) {
       setError(e.message || String(e));
@@ -97,6 +98,7 @@ export default function TryEditor({ rows, loc, user, onClose, onSaved }) {
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </label>
+              <PublicToggle value={isPublic} onChange={setIsPublic} what="this try" />
             </>
           )}
         </div>

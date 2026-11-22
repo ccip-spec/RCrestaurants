@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePeople, nameOf } from '../people';
 import { store } from '../utils';
+import { PrivateTag } from './Privacy';
 import { RECIPE_TYPES, fmtMinutes, fmtShort, totalMin } from '../recipes';
 
 const SORTS = [
@@ -22,7 +23,7 @@ function sortValue(r, key) {
 const EMPTY = { q: '', type: '', cuisine: '', by: '', maxTime: '' };
 const TIME_CAPS = [15, 30, 45, 60, 90];
 
-export default function RecipesView({ recipes, error, loading, onSelect, onAdd, onRetry }) {
+export default function RecipesView({ recipes, scope, error, loading, onSelect, onAdd, onRetry }) {
   const { members, byId } = usePeople();
   const [sort, setSort] = useState(() => store.get('rr_recipe_sort', { key: 'name', dir: 'asc' }));
   const [filters, setFilters] = useState(() => ({ ...EMPTY, ...store.get('rr_recipe_filters', {}) }));
@@ -188,7 +189,10 @@ export default function RecipesView({ recipes, error, loading, onSelect, onAdd, 
                     {r.cuisine && <span>{r.cuisine}</span>}
                     {r.ingredients?.length > 0 && <span>{r.ingredients.length} ingredients</span>}
                   </span>
-                  {r.created_by && <span className="line-people">From {nameOf(byId, r.created_by)}</span>}
+                  <span className="line-people">
+                    {r.created_by && <span>From {nameOf(byId, r.created_by)}</span>}
+                    {!r.is_public && <PrivateTag />}
+                  </span>
                 </span>
                 <span className="line-amount">
                   <span className="recipe-time">{t ? fmtShort(t) : ''}</span>
@@ -199,7 +203,9 @@ export default function RecipesView({ recipes, error, loading, onSelect, onAdd, 
         })}
       </ol>
 
-      {!loading && recipes.length === 0 && <p className="empty">No recipes yet. Add the first meal you two make.</p>}
+      {!loading && recipes.length === 0 && (
+        <p className="empty">{scope === 'mine' ? "You haven't added a recipe yet." : 'No recipes yet. Add the first meal you make.'}</p>
+      )}
       {!loading && recipes.length > 0 && list.length === 0 && <p className="empty">No recipes match.</p>}
     </div>
   );
