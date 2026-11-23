@@ -160,6 +160,7 @@ export default function ProfileSheet({ memberId, rows, recipes, onClose, onSelec
               <li key={x.id}>
                 <button className="line-row recipe-row" onClick={() => onSelectRecipe(x.id)}>
                   <span className="line-no">·</span>
+                  <Thumb row={x} />
                   <span className="line-main">
                     <span className="line-name">{x.name}</span>
                     <span className="meta">
