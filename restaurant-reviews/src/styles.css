@@ -1083,3 +1083,37 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 .line-people .private-tag { margin-left: 0; }
 .try-entry + .try-entry { border-top: 1px dashed var(--print-soft); margin-top: 6px; padding-top: 6px; }
 .field small { font-size: 0.8rem; }
+
+/* ---------- profiles, header icons ---------- */
+.sheet-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.sheet-actions .icon-btn { color: var(--print); }
+.sheet-actions .icon-btn.danger { color: var(--red); }
+.sheet-actions .icon-btn:last-child { color: var(--muted); }
+.name-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.people-list li { padding: 0; }
+.person-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 2px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--pen);
+}
+.person-go { font-family: var(--printed); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--print); }
+.profile-tabs { margin-top: 16px; }
+.match-box { margin-top: 14px; }
+.match-box p + p { margin-top: 4px; }

@@ -17,6 +17,7 @@ import { ensureRestaurant, saveTry } from './restaurants';
 import RecipesView from './components/RecipesView';
 import RecipeDetail from './components/RecipeDetail';
 import RecipeEditor from './components/RecipeEditor';
+import ProfileSheet from './components/ProfileSheet';
 
 // Every phone gets an anonymous sign-in (no email). Returns this phone's person, or null if not joined yet.
 async function signInAndWho() {
@@ -60,6 +61,7 @@ export default function App() {
   const [recipeError, setRecipeError] = useState(null);
   const [recipeId, setRecipeId] = useState(null);
   const [recipeEditor, setRecipeEditor] = useState(null); // { recipe? }
+  const [profileId, setProfileId] = useState(null);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const [joinCode] = useState(() => codeFromUrl() || rememberedCode());
@@ -325,8 +327,24 @@ export default function App() {
         </button>
       </nav>
 
+      {profileId && (
+        <ProfileSheet
+          key={profileId}
+          memberId={profileId}
+          rows={rows}
+          recipes={recipes}
+          onClose={() => setProfileId(null)}
+          onSelect={setSelectedId}
+          onSelectRecipe={setRecipeId}
+        />
+      )}
+
       {selected && (
         <RestaurantDetail
+          onPerson={(id) => {
+            setSelectedId(null);
+            setProfileId(id);
+          }}
           row={selected}
           onClose={() => setSelectedId(null)}
           onAddVisit={(r) => setEditor({ kind: 'visit', restaurant: r })}
@@ -404,6 +422,10 @@ export default function App() {
 
       {selectedRecipe && (
         <RecipeDetail
+          onPerson={(id) => {
+            setRecipeId(null);
+            setProfileId(id);
+          }}
           key={selectedRecipe.id}
           recipe={selectedRecipe}
           onClose={() => setRecipeId(null)}
@@ -437,6 +459,10 @@ export default function App() {
 
       {showSettings && (
         <SettingsSheet
+          onPerson={(id) => {
+            setShowSettings(false);
+            setProfileId(id);
+          }}
           onClose={() => setShowSettings(false)}
           onChanged={load}
           onInstall={() => {

@@ -5,8 +5,9 @@ import { siteHost } from '../utils';
 import { fmtMinutes, totalMin } from '../recipes';
 import Sheet from './Sheet';
 import { PrivateTag } from './Privacy';
+import { EditIcon, TrashIcon } from './Icons';
 
-export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, showToast }) {
+export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, onPerson, showToast }) {
   const { byId, me } = usePeople();
   const isMine = recipe.created_by === me?.id;
   // Tap an ingredient or step to cross it off while cooking (this phone only, resets on close).
@@ -27,11 +28,33 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, showT
   };
 
   return (
-    <Sheet title={r.name} onClose={onClose}>
+    <Sheet
+      title={r.name}
+      onClose={onClose}
+      actions={
+        isMine && (
+          <>
+            <button className="icon-btn" onClick={() => onEdit(r)} aria-label="Edit recipe" title="Edit recipe">
+              <EditIcon />
+            </button>
+            <button className="icon-btn danger" onClick={remove} disabled={busy} aria-label="Delete recipe" title="Delete recipe">
+              <TrashIcon />
+            </button>
+          </>
+        )
+      }
+    >
       <div className="recipe-facts">
         {r.meal_type && <span className="visit-meal">{r.meal_type}</span>}
         {r.cuisine && <span>{r.cuisine}</span>}
-        {r.created_by && <span>From {nameOf(byId, r.created_by)}</span>}
+        {r.created_by && (
+          <span>
+            From{' '}
+            <button className="name-link" onClick={() => onPerson(r.created_by)}>
+              {nameOf(byId, r.created_by)}
+            </button>
+          </span>
+        )}
         {!r.is_public && <PrivateTag />}
       </div>
 
@@ -116,18 +139,6 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, showT
         </p>
       )}
 
-      {isMine && (
-        <div className="detail-admin">
-          <div className="row gap wrap">
-            <button className="text-btn" onClick={() => onEdit(r)}>
-              Edit recipe
-            </button>
-            <button className="text-btn danger" onClick={remove} disabled={busy}>
-              Delete recipe
-            </button>
-          </div>
-        </div>
-      )}
     </Sheet>
   );
 }

@@ -8,7 +8,7 @@ import { isStandalone } from '../install';
 
 const friendly = (e) => (e?.message || String(e)).replace(/^.*?:\s*(?=[A-Z])/, '');
 
-export default function SettingsSheet({ onClose, onChanged, onInstall, onLogout, showToast }) {
+export default function SettingsSheet({ onClose, onChanged, onInstall, onLogout, onPerson, showToast }) {
   const { members, me } = usePeople();
   const [code, setCode] = useState(null);
   const [name, setName] = useState(me?.name || '');
@@ -120,11 +120,13 @@ export default function SettingsSheet({ onClose, onChanged, onInstall, onLogout,
       <ul className="people-list">
         {members.map((m) => (
           <li key={m.id}>
-            <span className="person">
-              <Avatar member={m} />
-              <span className="person-name">{m.name}</span>
-            </span>
-            {m.id === me?.id && <span className="you">You</span>}
+            <button className="person-row" onClick={() => onPerson(m.id)}>
+              <span className="person">
+                <Avatar member={m} />
+                <span className="person-name">{m.name}</span>
+              </span>
+              <span className="person-go">{m.id === me?.id ? <span className="you">You</span> : 'View'}</span>
+            </button>
           </li>
         ))}
       </ul>

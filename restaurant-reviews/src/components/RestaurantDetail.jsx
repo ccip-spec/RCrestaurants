@@ -82,7 +82,7 @@ function VisitBlock({ visit, onEdit, onDelete }) {
   );
 }
 
-export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit, onChanged, onDeleted, showToast }) {
+export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit, onChanged, onDeleted, onPerson, showToast }) {
   const { members, byId, me } = usePeople();
   const tryForMe = isTry(row, me?.id);
   const mine = myTry(row, me?.id);
@@ -279,7 +279,9 @@ export default function RestaurantDetail({ row, onClose, onAddVisit, onEditVisit
         <div className="tally">
           {ratersIn(members, row.avg).map((id) => (
             <div className="tally-line" key={id}>
-              <span>{nameOf(byId, id)}</span>
+              <button className="name-link" onClick={() => onPerson(id)}>
+                {nameOf(byId, id)}
+              </button>
               <span className="dots" />
               <b>{fmtScore(row.avg[id])}</b>
             </div>
