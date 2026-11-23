@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePeople, nameOf } from '../people';
 import { store } from '../utils';
 import { PrivateTag } from './Privacy';
+import Thumb from './Thumb';
 import { RECIPE_TYPES, fmtMinutes, fmtShort, totalMin } from '../recipes';
 
 const SORTS = [
@@ -182,6 +183,7 @@ export default function RecipesView({ recipes, scope, error, loading, onSelect, 
             <li key={r.id}>
               <button className="line-row recipe-row" onClick={() => onSelect(r.id)}>
                 <span className="line-no">{i + 1}</span>
+                <Thumb row={r} />
                 <span className="line-main">
                   <span className="line-name">{r.name}</span>
                   <span className="meta">

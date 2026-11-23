@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { supabase } from '../supabase';
 import { usePeople, nameOf } from '../people';
 import { siteHost } from '../utils';
-import { fmtMinutes, totalMin } from '../recipes';
+import { fmtMinutes, totalMin, scaleIngredient } from '../recipes';
+import { picturePath } from './Thumb';
 import Sheet from './Sheet';
 import { PrivateTag } from './Privacy';
 import { EditIcon, TrashIcon } from './Icons';
@@ -14,6 +15,10 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, onPer
   const [gotIt, setGotIt] = useState({});
   const [doneSteps, setDoneSteps] = useState({});
   const [busy, setBusy] = useState(false);
+  // Servings scaler: with a known serving count you pick servings, otherwise a multiplier.
+  const [serves, setServes] = useState(recipe.servings || null);
+  const [mult, setMult] = useState(1);
+  const factor = recipe.servings ? serves / recipe.servings : mult;
   const r = recipe;
   const total = totalMin(r);
   const host = siteHost(r.source_url);
@@ -31,19 +36,9 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, onPer
     <Sheet
       title={r.name}
       onClose={onClose}
-      actions={
-        isMine && (
-          <>
-            <button className="icon-btn" onClick={() => onEdit(r)} aria-label="Edit recipe" title="Edit recipe">
-              <EditIcon />
-            </button>
-            <button className="icon-btn danger" onClick={remove} disabled={busy} aria-label="Delete recipe" title="Delete recipe">
-              <TrashIcon />
-            </button>
-          </>
-        )
-      }
     >
+      {r.photo && <img className="cover" src={picturePath(r.photo)} alt="" />}
+      <div className="recipe-top">
       <div className="recipe-facts">
         {r.meal_type && <span className="visit-meal">{r.meal_type}</span>}
         {r.cuisine && <span>{r.cuisine}</span>}
@@ -57,16 +52,21 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, onPer
         )}
         {!r.is_public && <PrivateTag />}
       </div>
+      {isMine && (
+        <div className="recipe-tools">
+          <button className="tool-btn" onClick={() => onEdit(r)} aria-label="Edit recipe">
+            <EditIcon />
+            <span>Edit</span>
+          </button>
+          <button className="tool-btn danger" onClick={remove} disabled={busy} aria-label="Delete recipe">
+            <TrashIcon />
+          </button>
+        </div>
+      )}
+      </div>
 
-      {Boolean(r.servings || r.prep_min || r.cook_min) && (
+      {Boolean(r.prep_min || r.cook_min) && (
         <div className="tally">
-          {r.servings && (
-            <div className="tally-line">
-              <span>Serves</span>
-              <span className="dots" />
-              <b>{r.servings}</b>
-            </div>
-          )}
           {r.prep_min != null && r.prep_min > 0 && (
             <div className="tally-line">
               <span>Prep</span>
@@ -91,14 +91,45 @@ export default function RecipeDetail({ recipe, onClose, onEdit, onDeleted, onPer
         </div>
       )}
 
-      <h3 className="section-title">Ingredients</h3>
+      <div className="ing-head">
+        <h3 className="section-title">Ingredients</h3>
+        {r.servings ? (
+          <div className="stepper" aria-label="Servings">
+            <button onClick={() => setServes((n) => Math.max(1, n - 1))} disabled={serves <= 1} aria-label="Fewer servings">
+              −
+            </button>
+            <span>
+              <b>{serves}</b> {serves === 1 ? 'serving' : 'servings'}
+            </span>
+            <button onClick={() => setServes((n) => Math.min(99, n + 1))} aria-label="More servings">
+              +
+            </button>
+          </div>
+        ) : (
+          <div className="seg mult" aria-label="Batch size">
+            {[0.5, 1, 2, 3].map((m) => (
+              <button key={m} className={mult === m ? 'on' : ''} onClick={() => setMult(m)}>
+                {m === 0.5 ? '½' : m}×
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {factor !== 1 && (
+        <p className="muted small scaled-note">
+          Amounts {factor > 1 ? 'scaled up' : 'scaled down'} ×{Math.round(factor * 100) / 100}. Check anything without a number.{' '}
+          <button className="name-link" onClick={() => (r.servings ? setServes(r.servings) : setMult(1))}>
+            Reset
+          </button>
+        </p>
+      )}
       {r.ingredients?.length ? (
         <ul className="ingredients">
           {r.ingredients.map((ing, i) => (
             <li key={i}>
               <button className={gotIt[i] ? 'done' : ''} onClick={() => setGotIt((g) => ({ ...g, [i]: !g[i] }))}>
                 <span className="tick" aria-hidden="true">{gotIt[i] ? '✓' : ''}</span>
-                <span>{ing}</span>
+                <span>{scaleIngredient(ing, factor)}</span>
               </button>
             </li>
           ))}

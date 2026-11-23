@@ -1011,7 +1011,6 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 .check-head.five .box { padding: 6px 7px; min-width: 0; }
 .recipes-box .box-label { text-transform: none; letter-spacing: 0.03em; }
 .recipe-add { margin-top: 8px; }
-.recipe-row { grid-template-columns: 26px 1fr 80px; }
 .recipe-time { font-family: var(--hand); font-weight: 700; font-size: 1rem; color: var(--pen); text-align: right; }
 .recipe-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--muted); font-size: 0.9rem; }
 .recipe-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -1117,3 +1116,49 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 .profile-tabs { margin-top: 16px; }
 .match-box { margin-top: 14px; }
 .match-box p + p { margin-top: 4px; }
+
+/* ---------- recipe page tools, scaler, import ---------- */
+.recipe-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.recipe-top .recipe-facts { flex: 1; min-width: 0; padding-top: 6px; }
+.recipe-tools { display: flex; gap: 8px; flex: none; }
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1.5px solid var(--print);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--print);
+  font-family: var(--printed);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.tool-btn svg { width: 16px; height: 16px; }
+.tool-btn.danger { border-color: var(--red); color: var(--red); width: 34px; padding: 0; justify-content: center; }
+.ing-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px 10px; flex-wrap: wrap; margin-top: 26px; padding-bottom: 6px; border-bottom: 2px solid var(--print); }
+.ing-head .section-title { margin: 0; padding: 0; border: none; }
+.stepper { display: inline-flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+.stepper button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--print);
+  background: var(--paper);
+  color: var(--print);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.stepper button:disabled { opacity: 0.35; }
+.seg.mult { width: auto; }
+.seg.mult button { padding: 5px 12px; }
+.scaled-note { margin: 6px 0 2px; }
+.import-box { border: 1.5px dashed var(--print-soft); border-radius: 6px; padding: 10px 12px; }
+.import-box .row input { flex: 1; min-width: 0; }
+.import-box .btn { flex: none; }
+.ok-text { color: var(--print); margin-top: 6px; }
