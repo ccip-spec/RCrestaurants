@@ -13,7 +13,7 @@ export function fmtScore(n) {
   return n == null ? '–' : (Math.round(n * 10) / 10).toFixed(1);
 }
 
-export const MEALS = ['Breakfast', 'Brunch', 'Lunch', 'Dinner', 'Drinks'];
+export const MEALS = ['Breakfast', 'Brunch', 'Lunch', 'Dinner', 'Dessert', 'Drinks'];
 
 // Your rating scale
 export const TIERS = [

@@ -220,7 +220,7 @@ export default function VisitEditor({ rows, loc, user, restaurant, initialChoice
 
           <div className="field">
             <span>Meal</span>
-            <div className="seg">
+            <div className="seg grid3">
               {MEALS.map((m) => (
                 <button
                   key={m}

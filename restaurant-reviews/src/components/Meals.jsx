@@ -17,7 +17,7 @@ export function MealTags({ meals }) {
 export function MealPicker({ value, onChange }) {
   const toggle = (m) => onChange(value.includes(m) ? value.filter((x) => x !== m) : [...value, m]);
   return (
-    <div className="seg multi">
+    <div className="seg grid3">
       {MEALS.map((m) => (
         <button key={m} type="button" className={value.includes(m) ? 'on' : ''} onClick={() => toggle(m)}>
           {m}
