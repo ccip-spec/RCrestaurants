@@ -1162,3 +1162,9 @@ input[type='file'] { border: none; padding: 6px 0; background: none; }
 .import-box .row input { flex: 1; min-width: 0; }
 .import-box .btn { flex: none; }
 .ok-text { color: var(--print); margin-top: 6px; }
+
+/* Meal pickers: 3 across, 2 rows */
+.seg.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); }
+.seg.grid3 button { border-left: none; border-right: 1.5px solid var(--print); border-bottom: 1.5px solid var(--print); }
+.seg.grid3 button:nth-child(3n) { border-right: none; }
+.seg.grid3 button:nth-last-child(-n + 3) { border-bottom: none; }
